@@ -7,8 +7,8 @@ import (
 	"math/big"
 	"sync"
 
-	"mug.org/defiant/tnt2/cryptors"
-	"mug.org/defiant/tnt2/cryptors/bitops"
+	"github.com/bgallie/tnt2/cryptors"
+	"github.com/bgallie/tnt2/cryptors/bitops"
 )
 
 // Permutator is a type that defines a permutation table in TNT.

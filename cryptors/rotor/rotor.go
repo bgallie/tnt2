@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"mug.org/defiant/tnt2/cryptors"
-	"mug.org/defiant/tnt2/cryptors/bitops"
+	"github.com/bgallie/tnt2/cryptors"
+	"github.com/bgallie/tnt2/cryptors/bitops"
 )
 
 type Rotor struct {

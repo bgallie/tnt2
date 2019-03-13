@@ -17,12 +17,12 @@ import (
 	"os/user"
 	"sync"
 
-	"mug.org/defiant/filters"
-	"mug.org/defiant/tnt2/cryptors"
-	"mug.org/defiant/tnt2/cryptors/permutator"
-	"mug.org/defiant/tnt2/cryptors/rotor"
-	"mug.org/defiant/uberJc1"
-	"mug.org/defiant/utilities"
+	"github.com/bgallie/filters"
+	"github.com/bgallie/tnt2/cryptors"
+	"github.com/bgallie/tnt2/cryptors/permutator"
+	"github.com/bgallie/tnt2/cryptors/rotor"
+	"github.com/bgallie/uberJc1"
+	"github.com/bgallie/utilities"
 )
 
 const (
