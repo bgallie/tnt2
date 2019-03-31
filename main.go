@@ -18,10 +18,10 @@ import (
 	"sync"
 
 	"github.com/bgallie/filters"
+	"github.com/bgallie/jc1"
 	"github.com/bgallie/tnt2/cryptors"
 	"github.com/bgallie/tnt2/cryptors/permutator"
 	"github.com/bgallie/tnt2/cryptors/rotor"
-	"github.com/bgallie/uberJc1"
 	"github.com/bgallie/utilities"
 )
 
@@ -50,7 +50,7 @@ var (
 	rotorSizesIndex int
 	cycleSizes      []int
 	cycleSizesIndex int
-	key             *uberJc1.Jc1
+	key             *jc1.UberJc1
 	mKey            string
 	iCnt            *big.Int
 	cMap            map[string]*big.Int
@@ -88,12 +88,12 @@ func init() {
 	if flag.NArg() == 0 {
 		secret, exists := os.LookupEnv("tnt2Secret")
 		if exists {
-			key = uberJc1.New([]byte(secret))
+			key = jc1.NewUberJc1([]byte(secret))
 		} else {
 			log.Fatalln("You must supply a password.")
 		}
 	} else {
-		key = uberJc1.New([]byte(flag.Arg(0)))
+		key = jc1.NewUberJc1([]byte(flag.Arg(0)))
 	}
 
 	if !logIt {
@@ -666,13 +666,14 @@ func encrypt() {
 	var wg sync.WaitGroup
 	fout.WriteString(fmt.Sprintf("%s\n", iCnt))
 	aIn := filters.ToAscii85(encIn)
+	sIn := filters.SplitToLines(aIn)
 
 	// Go routine to read the output from the encIn, encrypt it and
 	// sends it to the ascii85.NewEncoder.
 	wg.Add(1)
 	go func() {
-		defer deferClose("Closing encOut.", encOut.Close)
 		defer wg.Done()
+		defer deferClose("Closing encOut.", encOut.Close)
 		defer un(trace("Go encIn -> encrypt -> ascii85.newEncoder"))
 		flateIn := filters.ToFlate(fin)
 		var err error
@@ -723,7 +724,7 @@ func encrypt() {
 
 	// Read the output of encodeCypherBlock and send it to STDOUT.
 	defer deferClose("Closing STDOUT", fout.Close)
-	cnt, err := io.Copy(fout, aIn)
+	cnt, err := io.Copy(fout, sIn)
 	log.Printf("fout io.Copy - cnt: %d, err: %v\n", cnt, err)
 	wg.Wait()
 }
@@ -747,19 +748,20 @@ func decrypt() {
 	wg.Add(1)
 
 	go func() {
-		defer un(trace("decrypt -> Ascii85Reader -> decryptEngine -> descOut"))
-		defer deferClose("decrypt -> closing decWrtr", decWrtr.Close)
 		defer wg.Done()
+		defer un(trace("decrypt -> CombineLines -> Ascii85Reader -> decryptEngine -> descOut"))
+		defer deferClose("decrypt -> closing decWrtr", decWrtr.Close)
 		var err error = nil
 		var cnt int
 		var blk cryptors.CypherBlock
 		encText := make([]byte, 0)
-		aRdr := filters.FromAscii85(bRdr)
+		sRdr := filters.CombineLines(bRdr)
+		aRdr := filters.FromAscii85(sRdr)
 
 		for err != io.EOF {
 			b := make([]byte, 1024, 1024)
 			cnt, err = aRdr.Read(b)
-			log.Printf("decrypt -> aRdr.Read: cnt: %d, err: %v\n", cnt, err)
+			log.Printf("decrypt -> sRdr.Read: cnt: %d, err: %v\n", cnt, err)
 			checkFatal(err)
 
 			if err != io.EOF {
