@@ -11,16 +11,20 @@ const (
 	CypherBlockBytes        = CypherBlockSize / BitsPerByte
 	MaximumRotorSize        = 8192
 	NumberPermutationCycles = 4
-	RotorSizeBytes          = (MaximumRotorSize + CypherBlockSize) / BitsPerByte
+	RotorSizeBytes          = MaximumRotorSize / BitsPerByte
 )
 
 var (
 	// rotoSizes is an array of possible rotor sizes.  It consists of prime
-	// numbers less than 8192.  The rotor sizes selected from this list will
-	// maximizes the number of unique states the rotors can take.
+	// numbers less than 8160 to allow for 256 bit splce at the end of the rotor.
+	// The rotor sizes selected from this list will maximizes the number of
+	// unique states the rotors can take.
 	RotorSizes = []int{
-		7993, 8009, 8011, 8017, 8039, 8053, 8059, 8069, 8081, 8087, 8089,
-		8093, 8101, 8111, 8117, 8123, 8147, 8161, 8167, 8171, 8179, 8191}
+		7523, 7529, 7537, 7541, 7547, 7549, 7559, 7561, 7573, 7577,
+		7583, 7589, 7591, 7603, 7607, 7621, 7639, 7643, 7649, 7669,
+		7673, 7681, 7687, 7691, 7699, 7703, 7717, 7723, 7727, 7741,
+		7753, 7757, 7759, 7789, 7793, 7817, 7823, 7829, 7841, 7853,
+		7867, 7873, 7877, 7879, 7883, 7901, 7907, 7919, 7927, 7933}
 
 	// cycleSizes is an array of cycles to use when cycling the permutation table.
 	// There are 4 cycles in each entry and they meet the following criteria:
@@ -29,7 +33,7 @@ var (
 	//          the number of unique states the permutation can be in for the
 	//          given cycles).
 	CycleSizes = [...][4]int{
-		{61, 63, 65, 67}, // Number of unique states: 16,736,265 [401,670,360]
+		{61, 63, 65, 67}, // Number of unique states: 16,736,265 [401,670,360]i
 		{53, 65, 67, 71}, // Number of unique states: 16,387,685 [393,304,440]
 		{55, 57, 71, 73}, // Number of unique states: 16,248,705 [389,968,920]
 		{53, 61, 63, 79}, // Number of unique states: 16,090,641 [386,175,384]
@@ -54,7 +58,7 @@ type Counter struct {
 
 type Crypter interface {
 	SetIndex(*big.Int)
-	GetIndex() *big.Int
+	Index() *big.Int
 	Apply_F(*[CypherBlockBytes]byte) *[CypherBlockBytes]byte
 	Apply_G(*[CypherBlockBytes]byte) *[CypherBlockBytes]byte
 }
@@ -63,7 +67,7 @@ func (cntr *Counter) SetIndex(index *big.Int) {
 	cntr.index = index
 }
 
-func (cntr *Counter) GetIndex() *big.Int {
+func (cntr *Counter) Index() *big.Int {
 	return cntr.index
 }
 

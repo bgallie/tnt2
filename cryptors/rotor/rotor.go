@@ -15,10 +15,10 @@ type Rotor struct {
 	size    int
 	step    int
 	current int
-	rotor   *[cryptors.RotorSizeBytes]byte
+	rotor   []byte
 }
 
-func New(start, size, step int, rotor *[cryptors.RotorSizeBytes]byte) *Rotor {
+func New(size, start, step int, rotor []byte) *Rotor {
 	var r Rotor
 	r.start, r.current = start, start
 	r.size = size
@@ -27,16 +27,16 @@ func New(start, size, step int, rotor *[cryptors.RotorSizeBytes]byte) *Rotor {
 	var i, j uint
 	for i = 0; i < 256; i += 1 {
 		j = uint(r.size) + i
-		if bitops.GetBit(r.rotor[0:], i) {
-			bitops.SetBit(r.rotor[0:], j)
+		if bitops.GetBit(r.rotor, i) {
+			bitops.SetBit(r.rotor, j)
 		} else {
-			bitops.ClrBit(r.rotor[0:], j)
+			bitops.ClrBit(r.rotor, j)
 		}
 	}
 	return &r
 }
 
-func (r *Rotor) Update(start, size, step int, rotor *[cryptors.RotorSizeBytes]byte) {
+func (r *Rotor) Update(size, start, step int, rotor []byte) {
 	r.start, r.current = start, start
 	r.size = size
 	r.step = step
@@ -44,10 +44,10 @@ func (r *Rotor) Update(start, size, step int, rotor *[cryptors.RotorSizeBytes]by
 	var i, j uint
 	for i = 0; i < 256; i += 1 {
 		j = uint(r.size) + i
-		if bitops.GetBit(r.rotor[0:], i) {
-			bitops.SetBit(r.rotor[0:], j)
+		if bitops.GetBit(r.rotor, i) {
+			bitops.SetBit(r.rotor, j)
 		} else {
-			bitops.ClrBit(r.rotor[0:], j)
+			bitops.ClrBit(r.rotor, j)
 		}
 	}
 }
@@ -67,14 +67,22 @@ func (rotor *Rotor) SetIndex(idx *big.Int) {
 	}
 }
 
-func (rotor *Rotor) GetIndex() *big.Int {
+func (rotor *Rotor) Index() *big.Int {
 	return nil
+}
+
+func (rotor *Rotor) Size() int {
+	return rotor.size
+}
+
+func (rotor *Rotor) Rotor() []byte {
+	return rotor.rotor
 }
 
 func (r *Rotor) Apply_F(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
 	var res [cryptors.CypherBlockBytes]byte
 	ress := res[:]
-	rotor := r.rotor[:]
+	rotor := r.rotor
 	idx := r.current
 
 	for cnt := 0; cnt < cryptors.CypherBlockSize; cnt++ {
@@ -109,13 +117,11 @@ func (r *Rotor) Apply_G(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherB
 
 func (rotor *Rotor) String() string {
 	var output bytes.Buffer
-	output.WriteString(fmt.Sprintf("\tSetSize(%d)\n", rotor.size))
-	output.WriteString(fmt.Sprintf("\tSetStart(%d)\n", rotor.start))
-	output.WriteString(fmt.Sprintf("\tSetStep(%d)\n", rotor.step))
-	output.WriteString(fmt.Sprintln("\tSetRotor([...]byte{"))
-	for i := 0; i < 1056; i += 16 {
-		output.WriteString("\t\t")
-		if i != 1040 {
+	output.WriteString(fmt.Sprintf("rotor.New(%d, %d, %d,[...]byte{\n",
+		rotor.size, rotor.start, rotor.step))
+	for i := 0; i < 1024; i += 16 {
+		output.WriteString("\t")
+		if i != 1008 {
 			for _, k := range rotor.rotor[i : i+16] {
 				output.WriteString(fmt.Sprintf("%d, ", k))
 			}

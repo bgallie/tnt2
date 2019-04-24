@@ -100,7 +100,7 @@ func (p *Permutator) SetIndex(idx *big.Int) {
 	p.cycle()
 }
 
-func (p *Permutator) GetIndex() *big.Int {
+func (p *Permutator) Index() *big.Int {
 	return nil
 }
 
