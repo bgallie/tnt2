@@ -11,7 +11,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"math/big"
 	"os"
 	"os/user"
@@ -53,8 +52,8 @@ var (
 	key             *jc1.UberJc1
 	mKey            string
 	iCnt            *big.Int
-	cMap            map[string]*big.Int
 	logIt           bool
+	cMap            map[string]*big.Int
 	nullFile        *os.File
 	cntrFileName    string
 	un              = utilities.Un
@@ -79,8 +78,8 @@ func init() {
 	flag.Parse()
 
 	if (encode && decode) || !(encode || decode) {
-		log.Println("You must select one of -encode or -decode")
-		log.Println(usage)
+		fmt.Fprintln(os.Stderr, "You must select one of -encode or -decode")
+		fmt.Fprintln(os.Stderr, usage)
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -90,7 +89,7 @@ func init() {
 		if exists {
 			key = jc1.NewUberJc1([]byte(secret))
 		} else {
-			log.Fatalln("You must supply a password.")
+			fmt.Fprintln(os.Stderr, "You must supply a password.")
 		}
 	} else {
 		key = jc1.NewUberJc1([]byte(flag.Arg(0)))
@@ -99,17 +98,15 @@ func init() {
 	if !logIt {
 		turnOffLogging()
 	}
-	log.Println("Getting current user info.")
+
 	u, err := user.Current()
 	checkFatal(err)
 	cntrFileName = fmt.Sprintf("%s%c%s", u.HomeDir, os.PathSeparator, Tnt2CountFile)
-	log.Printf("tnt2 counter file name: %s\n", cntrFileName)
 	// Get a 'checksum' of the encryption key.  This is used as a key to store
 	// the number of blocks encrypted during the last session.
 	var cksum [cryptors.CypherBlockBytes]byte
 	var eCksum [int((cryptors.CypherBlockBytes / 4.0) * 5)]byte
-	aLen := ascii85.Encode(eCksum[:], key.XORKeyStream(cksum[:]))
-	log.Printf("MaxEncodedLen: %d  aLen: %d\n", ascii85.MaxEncodedLen(cryptors.CypherBlockBytes), aLen)
+	ascii85.Encode(eCksum[:], key.XORKeyStream(cksum[:]))
 	mKey = string(eCksum[:])
 	// Read in the map of counts from the file which holds the counts and get the count to use to encode the file.
 	cMap = make(map[string]*big.Int)
@@ -122,7 +119,6 @@ func init() {
 		iCnt = cMap[mKey]
 	}
 
-	log.Printf("Read map file: %v\nCounter: %s\n", cMap, iCnt)
 	// Define a random order of rotor sizes based on the key.
 	rotorSizes = key.Perm(len(cryptors.RotorSizes))
 	// Define a random order of cycle sipzes based on the key.
@@ -574,10 +570,9 @@ func init() {
 	for _, machine := range proFormaMachine {
 		switch v := machine.(type) {
 		default:
-			log.Println(v)
+			fmt.Fprintf(os.Stderr, "Unknown machine: %v\n", v)
 		case *rotor.Rotor:
 			updateRotor(machine.(*rotor.Rotor), leftMost, rightMost)
-			log.Printf("Rotor size: %d\n", machine.(*rotor.Rotor).Size())
 		case *permutator.Permutator:
 			updatePermutator(machine.(*permutator.Permutator), leftMost, rightMost)
 		case *cryptors.Counter:
@@ -686,12 +681,10 @@ func encrypt() {
 			var blk cryptors.CypherBlock
 			b := make([]byte, 1024, 1024)
 			cnt, err = flateIn.Read(b)
-			log.Printf("flateIn %d %v", cnt, err)
 			checkFatal(err)
 
 			if err != io.EOF {
 				plainText = append(plainText, b[:cnt]...)
-				log.Printf("plainText.outer %d", len(plainText))
 
 				for len(plainText) >= cryptors.CypherBlockBytes {
 					_ = copy(blk.CypherBlock[:], plainText)
@@ -703,7 +696,6 @@ func encrypt() {
 					pt := make([]byte, 0)
 					pt = append(pt, plainText[cryptors.CypherBlockBytes:]...)
 					plainText = pt
-					log.Printf("plainText.inner %d", len(plainText))
 				}
 			} else if len(plainText) > 0 { // encrypt any remaining input.
 				var e error
@@ -714,7 +706,6 @@ func encrypt() {
 				blk = <-rightMost
 				cnt, e = encOut.Write([]byte(encodeCypherBlock(blk)))
 				checkFatal(e)
-				log.Printf("plainText %d", len(plainText))
 			}
 		}
 
@@ -726,8 +717,8 @@ func encrypt() {
 
 	// Read the output of encodeCypherBlock and send it to STDOUT.
 	defer deferClose("Closing STDOUT", fout.Close)
-	cnt, err := io.Copy(fout, sIn)
-	log.Printf("fout io.Copy - cnt: %d, err: %v\n", cnt, err)
+	_, err := io.Copy(fout, sIn)
+	checkFatal(err)
 	wg.Wait()
 }
 
@@ -744,7 +735,6 @@ func decrypt() {
 	}
 
 	leftMost, rightMost := cryptors.CreateDecryptMachine(iCnt, tntMachine...)
-	log.Printf("decrypt -> tntMachine.Index: %s", tntMachine[len(tntMachine)-1].Index())
 	decRdr, decWrtr := io.Pipe()
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -763,32 +753,27 @@ func decrypt() {
 		for err != io.EOF {
 			b := make([]byte, 1024, 1024)
 			cnt, err = aRdr.Read(b)
-			log.Printf("decrypt -> sRdr.Read: cnt: %d, err: %v\n", cnt, err)
 			checkFatal(err)
 
 			if err != io.EOF {
 				encText = append(encText, b[:cnt]...)
-				log.Printf("decrypt -> encText.outer %d", len(encText))
 
 				for len(encText) >= cryptors.CypherBlockBytes+1 {
 					blk = *decodeCypherBlock(encText[:cryptors.CypherBlockBytes+1])
 					leftMost <- blk
 					blk = <-rightMost
-					cnt, e := decWrtr.Write(blk.CypherBlock[:blk.Length])
-					log.Printf("decrypt -> decWrtr.Write: cnt: %d, err: %v\n", cnt, e)
+					_, e := decWrtr.Write(blk.CypherBlock[:blk.Length])
 					checkFatal(e)
 					pt := make([]byte, 0)
 					pt = append(pt, encText[cryptors.CypherBlockBytes+1:]...)
 					encText = pt
-					log.Printf("decrypt -> encText.inner %d", len(encText))
 				}
 			}
 		}
 	}()
 
 	aRdr := filters.FromFlate(decRdr)
-	cnt, err := io.Copy(fout, aRdr)
-	log.Printf("decrypt -> io.Copy: cnt: %d, err: %v\n", cnt, err)
+	_, err = io.Copy(fout, aRdr)
 	wg.Wait()
 }
 
@@ -797,8 +782,6 @@ func readCounterFile(defaultMap map[string]*big.Int) map[string]*big.Int {
 	f, err := os.OpenFile(cntrFileName, os.O_RDONLY, 0600)
 
 	if err != nil {
-		log.Printf("%s.  It will be created.\n", err)
-		log.Printf("returned map: %v\n", defaultMap)
 		return defaultMap
 	}
 
@@ -806,7 +789,6 @@ func readCounterFile(defaultMap map[string]*big.Int) map[string]*big.Int {
 	cmap := make(map[string]*big.Int)
 	dec := json.NewDecoder(f)
 	checkFatal(dec.Decode(&cmap))
-	log.Printf("returned map: %v\n", cMap)
 	return cmap
 }
 
@@ -819,30 +801,15 @@ func writeCounterFile(wMap map[string]*big.Int) error {
 	}
 
 	defer deferClose("Closing tnt2 map file", f.Close)
-	log.Printf("Map to write: %v\n", wMap)
 	e := json.NewEncoder(f)
 	e.SetIndent("", "    ")
 	return e.Encode(wMap)
 }
 
 func main() {
-	for _, machine := range tntMachine {
-		switch t := machine.(type) {
-		default:
-			log.Print(t)
-		case *rotor.Rotor:
-			log.Print("Rotor")
-		case *permutator.Permutator:
-			log.Print("Permutator")
-		case *cryptors.Counter:
-			log.Print("counter")
-		}
-	}
-
 	if encode {
 		encrypt()
 		cMap[mKey] = tntMachine[len(tntMachine)-1].Index()
-		log.Printf("key: %s\nUpdated map: %v", mKey, cMap)
 		checkFatal(writeCounterFile(cMap))
 	} else if decode {
 		decrypt()
