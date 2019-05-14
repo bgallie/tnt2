@@ -11,16 +11,22 @@ import (
 	"github.com/bgallie/tnt2/cryptors/bitops"
 )
 
-// Permutator is a type that defines a permutation table in TNT.
-type Permutator struct {
-	currentState int                                   // The number of states bitPerm has taken.
-	cycles       [cryptors.NumberPermutationCycles]int // Cycles ordered by the current permutation.
-	current      [cryptors.NumberPermutationCycles]int // Current start point of the cycle.
-	randp        [cryptors.CypherBlockSize]byte        // Values 0 - 255 in a random order.
-	bitPerm      [cryptors.CypherBlockSize]byte        // Permutation table created from randp.
+// cycle describes a cycle for the permutator so it can adjust the permutation
+// table used to permutate the block.  TNT currently uses 4 cycles to rearrange
+type cycle struct {
+	start   int // The starting point (into randp) for this cycle.
+	length  int // The length of the cycle.
+	current int // The point in the cycle [0 .. cycle.length-1] to start
 }
 
-var i256 [cryptors.CypherBlockSize]byte
+// Permutator is a type that defines a permutation cryptor in TNT.
+type Permutator struct {
+	currentState  int // Current number of cycles for this permutator.
+	maximalStates int // Maximum number of cycles this permutator can have before repeating.
+	cycles  [cryptors.NumberPermutationCycles]cycle // Cycles ordered by the current permutation.
+	randp   [cryptors.CypherBlockSize]byte          // Values 0 - 255 in a random order.
+	bitPerm [cryptors.CypherBlockSize]byte          // Permutation table created from randp.
+}
 
 // New creates a permutator and initializes it
 func New(cycleSizesIndex int, randp *[cryptors.CypherBlockSize]byte) *Permutator {
@@ -28,10 +34,18 @@ func New(cycleSizesIndex int, randp *[cryptors.CypherBlockSize]byte) *Permutator
 	p.randp = *randp
 
 	for i := range cryptors.CycleSizes[cycleSizesIndex] {
-		p.cycles[i] = cryptors.CycleSizes[cycleSizesIndex][i]
+		p.cycles[i].length = cryptors.CycleSizes[cycleSizesIndex][i]
+		p.cycles[i].current = 0
+		// Adjust the start to reflect the lenght of the previous cycles
+		if i == 0 { // no previous cycle so start at 0
+			p.cycles[i].start = 0
+		} else {
+			p.cycles[i].start = p.cycles[i-1].start + p.cycles[i-1].length
+		}
 	}
 
 	p.currentState = 0
+	p.maximalStates = p.cycles[0].length * p.cycles[1].length * p.cycles[2].length * p.cycles[3].length
 	p.cycle()
 	return &p
 }
@@ -40,45 +54,46 @@ func New(cycleSizesIndex int, randp *[cryptors.CypherBlockSize]byte) *Permutator
 func (p *Permutator) Update(cycleSizesIndex int, randp *[cryptors.CypherBlockSize]byte) {
 	p.randp = *randp
 
-	for i := range p.current {
-		p.current[i] = 0
-	}
-
 	for i := range cryptors.CycleSizes[cycleSizesIndex] {
-		p.cycles[i] = cryptors.CycleSizes[cycleSizesIndex][i]
+		p.cycles[i].length = cryptors.CycleSizes[cycleSizesIndex][i]
+		p.cycles[i].current = 0
+		// Adjust the start to reflect the lenght of the previous cycles
+		if i == 0 { // no previous cycle so start at 0
+			p.cycles[i].start = 0
+		} else {
+			p.cycles[i].start = p.cycles[i-1].start + p.cycles[i-1].length
+		}
 	}
 
 	p.currentState = 0
+	p.maximalStates = p.cycles[0].length * p.cycles[1].length * p.cycles[2].length * p.cycles[3].length
 	p.cycle()
 }
 
 // cycle bitPerm to it's next state.
 func (p *Permutator) nextState() {
-	for i, val := range p.cycles {
-		p.current[i] = (p.current[i] + 1) % val
+	for _, val := range p.cycles {
+		val.current = (val.current + 1) % val.length
 	}
 
-	p.currentState++
+	p.currentState = (p.currentState + 1) % p.maximalStates
 	p.cycle()
 }
 
 func (p *Permutator) cycle() {
 	var wg sync.WaitGroup
-	var cIdx int = 0
 
-	for i, val := range p.cycles {
+	for _, val := range p.cycles {
 		wg.Add(1)
 
-		go func(cycle []byte, sIdx int) {
+		go func(cycle []byte, sIdx int, length int) {
 			defer wg.Done()
 
 			for _, val := range cycle {
 				p.bitPerm[val] = p.randp[cycle[sIdx]]
-				sIdx = (sIdx + 1) % len(cycle)
+				sIdx = (sIdx + 1) % length
 			}
-		}(p.randp[cIdx:(cIdx+val)], p.current[i])
-
-		cIdx = cIdx + val
+		}(p.randp[val.start:val.start+val.length], val.current, val.length)
 	}
 
 	wg.Wait()
@@ -87,14 +102,13 @@ func (p *Permutator) cycle() {
 // Set the Permutator to the state it would be in after encoding 'idx - 1' blocks
 // of data.
 func (p *Permutator) SetIndex(idx *big.Int) {
-	maximalStates := int64(p.cycles[0] * p.cycles[1] * p.cycles[2] * p.cycles[3])
 	q := new(big.Int)
 	r := new(big.Int)
-	q, r = q.DivMod(idx, big.NewInt(int64(maximalStates)), r)
+	q, r = q.DivMod(idx, big.NewInt(int64(p.maximalStates)), r)
 	p.currentState = int(r.Int64())
 
-	for i := range p.cycles {
-		p.current[i] = p.currentState % p.cycles[i]
+	for _, val := range p.cycles {
+		val.current = p.currentState % val.length
 	}
 
 	p.cycle()
@@ -125,9 +139,9 @@ func (p *Permutator) Apply_G(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.Cy
 	blks := blk[:]
 	ress := res[:]
 
-	for idx, v := range p.bitPerm {
+	for i, v := range p.bitPerm {
 		if bitops.GetBit(blks, uint(v)) {
-			bitops.SetBit(ress, uint(idx))
+			bitops.SetBit(ress, uint(i))
 		}
 	}
 
@@ -138,21 +152,20 @@ func (p *Permutator) Apply_G(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.Cy
 
 func (p *Permutator) String() string {
 	var output bytes.Buffer
-	output.WriteString(fmt.Sprintf("\tSetCurrentState(%d)\n", p.currentState))
 	output.WriteString(fmt.Sprint("\tSetCycles([...]int8{"))
 
 	for _, v := range p.cycles[0 : cryptors.NumberPermutationCycles-1] {
-		output.WriteString(fmt.Sprintf("%d, ", v))
+		output.WriteString(fmt.Sprintf("%d, ", v.length))
 	}
 
-	output.WriteString(fmt.Sprintf("%d})\n", p.cycles[cryptors.NumberPermutationCycles-1]))
+	output.WriteString(fmt.Sprintf("%d})\n", p.cycles[cryptors.NumberPermutationCycles-1].length))
 	output.WriteString(fmt.Sprint("\tSetCurrent([...]int8{"))
 
-	for _, v := range p.current[0 : cryptors.NumberPermutationCycles-1] {
-		output.WriteString(fmt.Sprintf("%d, ", v))
+	for _, v := range p.cycles[0 : cryptors.NumberPermutationCycles-1] {
+		output.WriteString(fmt.Sprintf("%d, ", v.current))
 	}
 
-	output.WriteString(fmt.Sprintf("%d})\n", p.current[cryptors.NumberPermutationCycles-1]))
+	output.WriteString(fmt.Sprintf("%d})\n", p.cycles[cryptors.NumberPermutationCycles-1].current))
 	output.WriteString(fmt.Sprintf(""))
 	output.WriteString(fmt.Sprintf(""))
 	output.WriteString(fmt.Sprint("\tSetRandp([...]byte{\n"))

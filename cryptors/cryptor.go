@@ -33,7 +33,7 @@ var (
 	//          the number of unique states the permutation can be in for the
 	//          given cycles).
 	CycleSizes = [...][4]int{
-		{61, 63, 65, 67}, // Number of unique states: 16,736,265 [401,670,360]i
+		{61, 63, 65, 67}, // Number of unique states: 16,736,265 [401,670,360]
 		{53, 65, 67, 71}, // Number of unique states: 16,387,685 [393,304,440]
 		{55, 57, 71, 73}, // Number of unique states: 16,248,705 [389,968,920]
 		{53, 61, 63, 79}, // Number of unique states: 16,090,641 [386,175,384]
@@ -77,7 +77,6 @@ func (cntr *Counter) Apply_F(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byt
 }
 
 func (cntr *Counter) Apply_G(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
-	cntr.index.Add(cntr.index, BigOne)
 	return blk
 }
 
