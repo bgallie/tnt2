@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
-	"os"
 	"sync"
 
 	"github.com/bgallie/tnt2/cryptors"
