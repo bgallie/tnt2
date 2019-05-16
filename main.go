@@ -636,7 +636,6 @@ func updatePermutator(p *permutator.Permutator, left, right chan cryptors.Cypher
 		cycles[idx] = cryptors.CycleSizes[cycleSizesIndex][val]
 	}
 
-	fmt.Fprintf(os.Stderr, "updatePermutator: randi: %v\n", randi)
 	p.Update(cycles, &randp)
 	cycleSizesIndex = (cycleSizesIndex + 1) % len(cryptors.CycleSizes)
 }
