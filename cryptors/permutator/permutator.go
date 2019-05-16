@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"os"
 	"sync"
 
 	"github.com/bgallie/tnt2/cryptors"
@@ -21,20 +22,20 @@ type cycle struct {
 
 // Permutator is a type that defines a permutation cryptor in TNT.
 type Permutator struct {
-	currentState  int // Current number of cycles for this permutator.
-	maximalStates int // Maximum number of cycles this permutator can have before repeating.
-	cycles  [cryptors.NumberPermutationCycles]cycle // Cycles ordered by the current permutation.
-	randp   [cryptors.CypherBlockSize]byte          // Values 0 - 255 in a random order.
-	bitPerm [cryptors.CypherBlockSize]byte          // Permutation table created from randp.
+	currentState  int                                     // Current number of cycles for this permutator.
+	maximalStates int                                     // Maximum number of cycles this permutator can have before repeating.
+	cycles        [cryptors.NumberPermutationCycles]cycle // Cycles ordered by the current permutation.
+	randp         [cryptors.CypherBlockSize]byte          // Values 0 - 255 in a random order.
+	bitPerm       [cryptors.CypherBlockSize]byte          // Permutation table created from randp.
 }
 
 // New creates a permutator and initializes it
-func New(cycleSizesIndex int, randp *[cryptors.CypherBlockSize]byte) *Permutator {
+func New(cycleSizes []int, randp *[cryptors.CypherBlockSize]byte) *Permutator {
 	var p Permutator
 	p.randp = *randp
 
-	for i := range cryptors.CycleSizes[cycleSizesIndex] {
-		p.cycles[i].length = cryptors.CycleSizes[cycleSizesIndex][i]
+	for i := range cycleSizes {
+		p.cycles[i].length = cycleSizes[i]
 		p.cycles[i].current = 0
 		// Adjust the start to reflect the lenght of the previous cycles
 		if i == 0 { // no previous cycle so start at 0
@@ -46,16 +47,17 @@ func New(cycleSizesIndex int, randp *[cryptors.CypherBlockSize]byte) *Permutator
 
 	p.currentState = 0
 	p.maximalStates = p.cycles[0].length * p.cycles[1].length * p.cycles[2].length * p.cycles[3].length
+	fmt.Fprintf(os.Stderr, "New: cycleSizes: %v cycles: %v maximalStates: %d\n", cycleSizes, p.cycles, p.maximalStates)
 	p.cycle()
 	return &p
 }
 
 // Update the permutator with a new initialCycles and randp
-func (p *Permutator) Update(cycleSizesIndex int, randp *[cryptors.CypherBlockSize]byte) {
+func (p *Permutator) Update(cycleSizes []int, randp *[cryptors.CypherBlockSize]byte) {
 	p.randp = *randp
 
-	for i := range cryptors.CycleSizes[cycleSizesIndex] {
-		p.cycles[i].length = cryptors.CycleSizes[cycleSizesIndex][i]
+	for i := range cycleSizes {
+		p.cycles[i].length = cycleSizes[i]
 		p.cycles[i].current = 0
 		// Adjust the start to reflect the lenght of the previous cycles
 		if i == 0 { // no previous cycle so start at 0
@@ -67,6 +69,7 @@ func (p *Permutator) Update(cycleSizesIndex int, randp *[cryptors.CypherBlockSiz
 
 	p.currentState = 0
 	p.maximalStates = p.cycles[0].length * p.cycles[1].length * p.cycles[2].length * p.cycles[3].length
+	fmt.Fprintf(os.Stderr, "Update: cycleSizes: %v cycles: %v maximalStates: %d\n", cycleSizes, p.cycles, p.maximalStates)
 	p.cycle()
 }
 
