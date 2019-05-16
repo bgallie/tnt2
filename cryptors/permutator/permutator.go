@@ -47,7 +47,6 @@ func New(cycleSizes []int, randp *[cryptors.CypherBlockSize]byte) *Permutator {
 
 	p.currentState = 0
 	p.maximalStates = p.cycles[0].length * p.cycles[1].length * p.cycles[2].length * p.cycles[3].length
-	fmt.Fprintf(os.Stderr, "New: cycleSizes: %v cycles: %v maximalStates: %d\n", cycleSizes, p.cycles, p.maximalStates)
 	p.cycle()
 	return &p
 }
@@ -69,7 +68,6 @@ func (p *Permutator) Update(cycleSizes []int, randp *[cryptors.CypherBlockSize]b
 
 	p.currentState = 0
 	p.maximalStates = p.cycles[0].length * p.cycles[1].length * p.cycles[2].length * p.cycles[3].length
-	fmt.Fprintf(os.Stderr, "Update: cycleSizes: %v cycles: %v maximalStates: %d\n", cycleSizes, p.cycles, p.maximalStates)
 	p.cycle()
 }
 
