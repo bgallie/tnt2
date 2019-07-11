@@ -21,17 +21,18 @@ type cycle struct {
 
 // Permutator is a type that defines a permutation cryptor in TNT.
 type Permutator struct {
-	CurrentState  int                                     // Current number of cycles for this permutator.
-	MaximalStates int                                     // Maximum number of cycles this permutator can have before repeating.
-	Cycles        [cryptors.NumberPermutationCycles]cycle // Cycles ordered by the current permutation.
-	Randp         [cryptors.CypherBlockSize]byte          // Values 0 - 255 in a random order.
-	bitPerm       [cryptors.CypherBlockSize]byte          // Permutation table created from randp.
+	CurrentState  int                            // Current number of cycles for this permutator.
+	MaximalStates int                            // Maximum number of cycles this permutator can have before repeating.
+	Cycles        []cycle                        // Cycles ordered by the current permutation.
+	Randp         []byte                         // Values 0 - 255 in a random order.
+	bitPerm       [cryptors.CypherBlockSize]byte // Permutation table created from randp.
 }
 
 // New creates a permutator and initializes it
-func New(cycleSizes []int, randp *[cryptors.CypherBlockSize]byte) *Permutator {
+func New(cycleSizes []int, randp []byte) *Permutator {
 	var p Permutator
-	p.Randp = *randp
+	p.Randp = randp
+	p.Cycles = make([]cycle, len(cycleSizes))
 
 	for i := range cycleSizes {
 		p.Cycles[i].Length = cycleSizes[i]
@@ -45,14 +46,20 @@ func New(cycleSizes []int, randp *[cryptors.CypherBlockSize]byte) *Permutator {
 	}
 
 	p.CurrentState = 0
-	p.MaximalStates = p.Cycles[0].Length * p.Cycles[1].Length * p.Cycles[2].Length * p.Cycles[3].Length
+	p.MaximalStates = p.Cycles[0].Length
+
+	for i := 1; i < len(p.Cycles); i++ {
+		p.MaximalStates *= p.Cycles[i].Length
+	}
+
 	p.cycle()
 	return &p
 }
 
 // Update the permutator with a new initialCycles and randp
-func (p *Permutator) Update(cycleSizes []int, randp *[cryptors.CypherBlockSize]byte) {
-	p.Randp = *randp
+func (p *Permutator) Update(cycleSizes []int, randp []byte) {
+	p.Randp = randp
+	p.Cycles = make([]cycle, len(cycleSizes))
 
 	for i := range cycleSizes {
 		p.Cycles[i].Length = cycleSizes[i]
@@ -66,7 +73,11 @@ func (p *Permutator) Update(cycleSizes []int, randp *[cryptors.CypherBlockSize]b
 	}
 
 	p.CurrentState = 0
-	p.MaximalStates = p.Cycles[0].Length * p.Cycles[1].Length * p.Cycles[2].Length * p.Cycles[3].Length
+
+	for i := 1; i < len(p.Cycles); i++ {
+		p.MaximalStates *= p.Cycles[i].Length
+	}
+
 	p.cycle()
 }
 

@@ -521,7 +521,7 @@ func init() {
 		51, 125, 4, 91, 232, 194, 109, 201, 61, 123, 99, 202, 0, 228, 235, 173,
 		203, 205, 73, 82, 8, 252, 196, 230, 83, 192, 43, 30, 119, 41, 223, 175})
 
-	permutator1 = permutator.New(cryptors.CycleSizes[1][:], &[...]byte{
+	permutator1 = permutator.New(cryptors.CycleSizes[1][:], []byte{
 		248, 181, 196, 140, 239, 198, 53, 229, 222, 20, 255, 34, 118, 41, 127, 45,
 		95, 174, 142, 115, 137, 132, 100, 121, 176, 187, 122, 199, 70, 9, 179, 7,
 		43, 238, 113, 185, 249, 85, 59, 231, 4, 237, 139, 31, 128, 208, 82, 40,
@@ -539,7 +539,7 @@ func init() {
 		111, 84, 156, 80, 232, 78, 177, 33, 116, 133, 211, 11, 14, 119, 56, 252,
 		18, 63, 152, 3, 205, 2, 245, 254, 220, 29, 184, 69, 221, 39, 74, 28})
 
-	permutator2 = permutator.New(cryptors.CycleSizes[2][:], &[...]byte{
+	permutator2 = permutator.New(cryptors.CycleSizes[2][:], []byte{
 		39, 0, 64, 155, 252, 164, 162, 145, 86, 32, 88, 37, 67, 113, 235, 205,
 		231, 141, 249, 31, 53, 202, 225, 161, 169, 236, 128, 91, 50, 82, 24, 85,
 		204, 203, 197, 70, 9, 140, 124, 129, 4, 20, 186, 237, 152, 126, 198, 176,
@@ -636,7 +636,7 @@ func updatePermutator(p *permutator.Permutator, left, right chan cryptors.Cypher
 		cycles[idx] = cryptors.CycleSizes[cycleSizesIndex][val]
 	}
 
-	p.Update(cycles, &randp)
+	p.Update(cycles, randp[:])
 	cycleSizesIndex = (cycleSizesIndex + 1) % len(cryptors.CycleSizes)
 }
 
