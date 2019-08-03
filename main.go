@@ -662,8 +662,6 @@ func encrypt() {
 	fout := os.Stdout
 	var wg sync.WaitGroup
 	fout.WriteString(fmt.Sprintf("%s\n", iCnt))
-	aIn := filters.ToAscii85(encIn)
-	sIn := filters.SplitToLines(aIn)
 
 	// Go routine to read the output from the encIn, encrypt it and
 	// sends it to the ascii85.NewEncoder.
@@ -717,7 +715,7 @@ func encrypt() {
 
 	// Read the output of encodeCypherBlock and send it to STDOUT.
 	defer deferClose("Closing STDOUT", fout.Close)
-	_, err := io.Copy(fout, sIn)
+	_, err := io.Copy(fout, filters.SplitToLines(filters.ToAscii85(encIn)))
 	checkFatal(err)
 	wg.Wait()
 }
@@ -747,8 +745,7 @@ func decrypt() {
 		var cnt int
 		var blk cryptors.CypherBlock
 		encText := make([]byte, 0)
-		sRdr := filters.CombineLines(bRdr)
-		aRdr := filters.FromAscii85(sRdr)
+		aRdr := filters.FromAscii85(filters.CombineLines(bRdr))
 
 		for err != io.EOF {
 			b := make([]byte, 1024, 1024)
@@ -772,8 +769,7 @@ func decrypt() {
 		}
 	}()
 
-	aRdr := filters.FromFlate(decRdr)
-	_, err = io.Copy(fout, aRdr)
+	_, err = io.Copy(fout, filters.FromFlate(decRdr))
 	wg.Wait()
 }
 
