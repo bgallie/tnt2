@@ -1,0 +1,6 @@
+github.com/bgallie/filters v0.0.0-20190819023249-93d4b39acbd4 h1:eLO9pgQzqqp/JsPHb9OZGXTRdqW+MzV1IaOR3uHvbWQ=
+github.com/bgallie/filters v0.0.0-20190819023249-93d4b39acbd4/go.mod h1:ygzbjiu0CmnS2aQk/Ai/9gfLzNPORBjrMl78X0E73Ko=
+github.com/bgallie/jc1 v0.0.0-20190327190541-8dc7b52d4d06 h1:sHKWtEowwRS8hmKu+avdwf+QhiMEBR/gke62AgF2Xbk=
+github.com/bgallie/jc1 v0.0.0-20190327190541-8dc7b52d4d06/go.mod h1:gIntVXyW2JeIHaTkEAQarW2GAMLZVy/HZUViozmke+s=
+github.com/bgallie/utilities v0.0.0-20190429171123-27bf190fa36b h1:N/wFT0w/O7ZN8QsU5iHFK31w2yIqfko72f4uyUOxbkE=
+github.com/bgallie/utilities v0.0.0-20190429171123-27bf190fa36b/go.mod h1:Q/JZ/uAlu/AMtWW2oV18SDg79xQEUgiuJ1eouhGR0QQ=
