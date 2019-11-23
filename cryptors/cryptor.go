@@ -47,13 +47,11 @@ var (
 	BigOne  = big.NewInt(1)
 )
 
+// CypherBlock is the data processed by the crypters (rotors and permutators).
+// It consistes of the length in bytes to process and the data to process.
 type CypherBlock struct {
 	Length      int8
 	CypherBlock [CypherBlockBytes]byte
-}
-
-type Counter struct {
-	index *big.Int
 }
 
 type Crypter interface {
@@ -61,6 +59,10 @@ type Crypter interface {
 	Index() *big.Int
 	Apply_F(*[CypherBlockBytes]byte) *[CypherBlockBytes]byte
 	Apply_G(*[CypherBlockBytes]byte) *[CypherBlockBytes]byte
+}
+
+type Counter struct {
+	index *big.Int
 }
 
 func (cntr *Counter) SetIndex(index *big.Int) {

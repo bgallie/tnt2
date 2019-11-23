@@ -22,6 +22,7 @@ import (
 	"github.com/bgallie/tnt2/cryptors/permutator"
 	"github.com/bgallie/tnt2/cryptors/rotor"
 	"github.com/bgallie/utilities"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -84,16 +85,28 @@ func init() {
 		os.Exit(1)
 	}
 
+	var secret string
 	if flag.NArg() == 0 {
 		secret, exists := os.LookupEnv("tnt2Secret")
-		if exists {
-			key = jc1.NewUberJc1([]byte(secret))
-		} else {
-			fmt.Fprintln(os.Stderr, "You must supply a password.")
+		if !exists {
+			// fmt.Fprintf(os.Stderr, "IsTerminal: %s\n", terminal.IsTerminal(int(os.Stdin.Fd())))
+			if terminal.IsTerminal(int(os.Stdin.Fd())) {
+				fmt.Fprintf(os.Stderr, "Enter the passphrase: ")
+				byteSecret, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+				checkFatal(err)
+				fmt.Fprintln(os.Stderr, "")
+				secret = string(byteSecret)
+				fmt.Fprintf(os.Stderr, "The entered password is \"%s\"\n", secret)
+			} else {
+				fmt.Fprintln(os.Stderr, "You must supply a password.")
+				os.Exit(1)
+			}
 		}
 	} else {
-		key = jc1.NewUberJc1([]byte(flag.Arg(0)))
+		secret = flag.Arg(0)
 	}
+
+	key = jc1.NewUberJc1([]byte(secret))
 
 	if !logIt {
 		turnOffLogging()
