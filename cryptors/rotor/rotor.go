@@ -11,8 +11,8 @@ import (
 )
 
 type Rotor struct {
-	Start   int
 	Size    int
+	Start   int
 	Step    int
 	Current int
 	Rotor   []byte
