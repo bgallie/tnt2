@@ -32,7 +32,7 @@ var (
 	//      2.  The cycles are relatively prime to each other. (This maximizes
 	//          the number of unique states the permutation can be in for the
 	//          given cycles).
-	CycleSizes = [...][4]int{
+	CycleSizes = [...][NumberPermutationCycles]int{
 		{61, 63, 65, 67}, // Number of unique states: 16,736,265 [401,670,360]
 		{53, 65, 67, 71}, // Number of unique states: 16,387,685 [393,304,440]
 		{55, 57, 71, 73}, // Number of unique states: 16,248,705 [389,968,920]

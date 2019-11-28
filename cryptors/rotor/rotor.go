@@ -11,8 +11,8 @@ import (
 )
 
 type Rotor struct {
-	Start   int
 	Size    int
+	Start   int
 	Step    int
 	Current int
 	Rotor   []byte
@@ -118,19 +118,20 @@ func (r *Rotor) Apply_G(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherB
 func (rotor *Rotor) String() string {
 	var output bytes.Buffer
 	rotorLen := len(rotor.Rotor)
-	output.WriteString(fmt.Sprintf("rotor.New(%d, %d, %d,[]byte{\n",
+	output.WriteString(fmt.Sprintf("rotor.New(%d, %d, %d, []byte{\n",
 		rotor.Size, rotor.Start, rotor.Step))
 	for i := 0; i < rotorLen; i += 16 {
 		output.WriteString("\t")
-		if i != rotorLen-16 {
+		if i+16 < rotorLen {
 			for _, k := range rotor.Rotor[i : i+16] {
 				output.WriteString(fmt.Sprintf("%d, ", k))
 			}
 		} else {
-			for _, k := range rotor.Rotor[i : i+15] {
+			l := len(rotor.Rotor[i:])
+			for _, k := range rotor.Rotor[i : i+l-1] {
 				output.WriteString(fmt.Sprintf("%d, ", k))
 			}
-			output.WriteString(fmt.Sprintf("%d})", rotor.Rotor[i+15]))
+			output.WriteString(fmt.Sprintf("%d})", rotor.Rotor[i+l-1]))
 		}
 		output.WriteString("\n")
 	}
