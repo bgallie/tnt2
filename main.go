@@ -134,7 +134,7 @@ func init() {
 
 	// Define a random order of rotor sizes based on the key.
 	rotorSizes = key.Perm(len(cryptors.RotorSizes))
-	// Define a random order of cycle sipzes based on the key.
+	// Define a random order of cycle sizes based on the key.
 	cycleSizes = key.Perm(len(cryptors.CycleSizes))
 	cycleSizesIndex = int(key.Int32n(int32(len(cycleSizes))))
 	// Create the proforma rotors and permentators used to create the actual rotors and permentators to use.
