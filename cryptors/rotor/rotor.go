@@ -25,13 +25,14 @@ func New(size, start, step int, rotor []byte) *Rotor {
 	r.Step = step
 	r.Rotor = rotor
 	var i, j uint
-	for i = 0; i < 256; i += 1 {
-		j = uint(r.Size) + i
+	j = uint(r.Size)
+	for i = 0; i < 256; i++ {
 		if bitops.GetBit(r.Rotor, i) {
 			bitops.SetBit(r.Rotor, j)
 		} else {
 			bitops.ClrBit(r.Rotor, j)
 		}
+		j++
 	}
 	return &r
 }
@@ -42,13 +43,14 @@ func (r *Rotor) Update(size, start, step int, rotor []byte) {
 	r.Step = step
 	r.Rotor = rotor
 	var i, j uint
-	for i = 0; i < 256; i += 1 {
-		j = uint(r.Size) + i
+	j = uint(r.Size)
+	for i = 0; i < 256; i++ {
 		if bitops.GetBit(r.Rotor, i) {
 			bitops.SetBit(r.Rotor, j)
 		} else {
 			bitops.ClrBit(r.Rotor, j)
 		}
+		j++
 	}
 }
 
@@ -70,14 +72,6 @@ func (rotor *Rotor) SetIndex(idx *big.Int) {
 func (rotor *Rotor) Index() *big.Int {
 	return nil
 }
-
-// func (rotor *Rotor) Size() int {
-// 	return rotor.Size
-// }
-
-// func (rotor *Rotor) Rotor() []byte {
-// 	return rotor.Rotor
-// }
 
 func (r *Rotor) Apply_F(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
 	var res [cryptors.CypherBlockBytes]byte
