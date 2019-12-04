@@ -163,13 +163,13 @@ func (p *Permutator) Apply_G(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.Cy
 
 func (p *Permutator) String() string {
 	var output bytes.Buffer
-	output.WriteString(fmt.Sprint("permutator.New([...]int{"))
+	output.WriteString(fmt.Sprint("permutator.New([]int{"))
 
 	for _, v := range p.Cycles[0 : cryptors.NumberPermutationCycles-1] {
 		output.WriteString(fmt.Sprintf("%d, ", v.Length))
 	}
 
-	output.WriteString(fmt.Sprintf("%d}, []byte(\n", p.Cycles[cryptors.NumberPermutationCycles-1].Length))
+	output.WriteString(fmt.Sprintf("%d}, []byte{\n", p.Cycles[cryptors.NumberPermutationCycles-1].Length))
 
 	for i := 0; i < cryptors.CypherBlockSize; i += 16 {
 		output.WriteString("\t")
