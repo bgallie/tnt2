@@ -73,6 +73,7 @@ func (p *Permutator) Update(cycleSizes []int, randp []byte) {
 	}
 
 	p.CurrentState = 0
+	p.MaximalStates = p.Cycles[0].Length
 
 	for i := 1; i < len(p.Cycles); i++ {
 		p.MaximalStates *= p.Cycles[i].Length
