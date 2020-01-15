@@ -92,6 +92,7 @@ func (p *Permutator) nextState() {
 	p.cycle()
 }
 
+// cycle will create a new bitPerm from Randp based on the current cycle.
 func (p *Permutator) cycle() {
 	var wg sync.WaitGroup
 
@@ -126,10 +127,13 @@ func (p *Permutator) SetIndex(idx *big.Int) {
 	p.cycle()
 }
 
+// Index returns the current index of the cryptor.  For permeutators, this
+// returns nil.
 func (p *Permutator) Index() *big.Int {
 	return nil
 }
 
+// Apply_F performs the forward permutation on the 32 byte block of data.
 func (p *Permutator) Apply_F(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
 	var res [cryptors.CypherBlockBytes]byte
 	blks := blk[:]
@@ -146,6 +150,7 @@ func (p *Permutator) Apply_F(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.Cy
 	return blk
 }
 
+// Apply_G performs the reverse permutation on the 32 byte block of data.
 func (p *Permutator) Apply_G(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
 	var res [cryptors.CypherBlockBytes]byte
 	blks := blk[:]
@@ -162,6 +167,7 @@ func (p *Permutator) Apply_G(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.Cy
 	return blk
 }
 
+// String formats a string representing the permutator (as Go source code).
 func (p *Permutator) String() string {
 	var output bytes.Buffer
 	output.WriteString(fmt.Sprint("permutator.New([]int{"))

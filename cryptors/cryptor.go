@@ -26,7 +26,7 @@ var (
 		7753, 7757, 7759, 7789, 7793, 7817, 7823, 7829, 7841, 7853,
 		7867, 7873, 7877, 7879, 7883, 7901, 7907, 7919, 7927, 7933}
 
-	// cycleSizes is an array of cycles to use when cycling the permutation table.
+	// CycleSizes is an array of cycles to use when cycling the permutation table.
 	// There are 4 cycles in each entry and they meet the following criteria:
 	//      1.  The sum of the cycles is equal to 256.
 	//      2.  The cycles are relatively prime to each other. (This maximizes
@@ -42,6 +42,15 @@ var (
 		{47, 53, 73, 83}, // Number of unique states: 15,092,969 [362,231,256]
 		{47, 53, 71, 85}} // Number of unique states: 15,033,185 [360,796,440]
 
+	// CyclePermutations is an array of possible orderings that a particular
+	// set of four (4) cycle sized that take.  This is used to increase the
+	// complexity that the cryptoanalysis faces.
+	CyclePermutations = [...][NumberPermutationCycles]int{
+		{0, 1, 2, 3}, {0, 1, 3, 2}, {0, 2, 1, 3}, {0, 2, 3, 1}, {0, 3, 2, 1}, {0, 3, 1, 2},
+		{1, 0, 2, 3}, {1, 0, 3, 2}, {1, 2, 0, 3}, {1, 2, 3, 0}, {1, 3, 2, 0}, {1, 3, 0, 2},
+		{2, 0, 1, 3}, {2, 0, 3, 1}, {2, 1, 0, 3}, {2, 1, 3, 0}, {2, 3, 1, 0}, {2, 3, 0, 1},
+		{3, 0, 1, 2}, {3, 0, 2, 1}, {3, 1, 0, 2}, {3, 1, 2, 0}, {3, 2, 1, 0}, {3, 2, 0, 1}}
+
 	// Define big ints zero and one.
 	BigZero = big.NewInt(0)
 	BigOne  = big.NewInt(1)
@@ -52,6 +61,22 @@ var (
 type CypherBlock struct {
 	Length      int8
 	CypherBlock [CypherBlockBytes]byte
+}
+
+// Marshall converts a CypherBlock into a byte slice
+func (cblk *CypherBlock) Marshall() []byte {
+	b := make([]byte, 0, 0)
+	b = append(b, byte(cblk.Length))
+	b = append(b, cblk.CypherBlock[:]...)
+	return b
+}
+
+// Unmarshall converts a byte slice (created by Marshall) into a CypherBlock
+func (cblk *CypherBlock) Unmarshall(b []byte) *CypherBlock {
+	blk := new(CypherBlock)
+	blk.Length = int8(b[0])
+	_ = copy(blk.CypherBlock[:], b[1:])
+	return blk
 }
 
 type Crypter interface {
@@ -80,14 +105,6 @@ func (cntr *Counter) Apply_F(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byt
 
 func (cntr *Counter) Apply_G(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
 	return blk
-}
-
-func Encrypt(ecm Crypter, blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
-	return ecm.Apply_F(blk)
-}
-
-func Decrypt(ecm Crypter, blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
-	return ecm.Apply_G(blk)
 }
 
 func SetIndex(ecm Crypter, idx *big.Int) {

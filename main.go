@@ -169,14 +169,14 @@ func init() {
 			updatePermutator(p, leftMost, rightMost)
 			proFormaMachine[pfCnt] = p
 		case *cryptors.Counter:
-			machine.(*cryptors.Counter).SetIndex(big.NewInt(0))
+			machine.(*cryptors.Counter).SetIndex(cryptors.BigZero)
 		}
 	}
 
 	// Update the tntMachine to change the order of rotors and permutators in a randon order.
 	tntMachine = make([]cryptors.Crypter, 9, 9)
 	// Scramble the order of the rotors and permutators
-	tntOrder := key.Perm(8)
+	tntOrder := key.Perm(len(tntMachine) - 1)
 
 	for i, v := range tntOrder {
 		tntMachine[i] = proFormaMachine[v]
@@ -421,26 +421,24 @@ func updatePermutator(p *permutator.Permutator, left, right chan cryptors.Cypher
 	cycleSizesIndex = (cycleSizesIndex + 1) % len(cryptors.CycleSizes)
 }
 
-func encodeCypherBlock(blk cryptors.CypherBlock) []byte {
-	b := make([]byte, 0, 0)
-	b = append(b, byte(blk.Length))
-	b = append(b, blk.CypherBlock[:]...)
-	return b
-}
+// func encodeCypherBlock(blk cryptors.CypherBlock) []byte {
+// 	b := make([]byte, 0, 0)
+// 	b = append(b, byte(blk.Length))
+// 	b = append(b, blk.CypherBlock[:]...)
+// 	return b
+// }
 
-func decodeCypherBlock(bytes []byte) *cryptors.CypherBlock {
-	blk := new(cryptors.CypherBlock)
-	blk.Length = int8(bytes[0])
-	_ = copy(blk.CypherBlock[:], bytes[1:])
-	return blk
-}
+// func decodeCypherBlock(bytes []byte) *cryptors.CypherBlock {
+// 	blk := new(cryptors.CypherBlock)
+// 	blk.Length = int8(bytes[0])
+// 	_ = copy(blk.CypherBlock[:], bytes[1:])
+// 	return blk
+// }
 
-func encrypt() {
-	defer un(trace("encrypt"))
-	encIn, encOut := io.Pipe()
-	leftMost, rightMost := cryptors.CreateEncryptMachine(iCnt, tntMachine...)
-	var err error
+func getInputAndOutputFiles() (*os.File, *os.File) {
 	var fin *os.File
+	var err error
+
 	if len(inputFileName) > 0 {
 		if inputFileName == "-" {
 			fin = os.Stdin
@@ -453,6 +451,7 @@ func encrypt() {
 	}
 
 	var fout *os.File
+
 	if len(outputFileName) > 0 {
 		if outputFileName == "-" {
 			fout = os.Stdout
@@ -464,17 +463,26 @@ func encrypt() {
 		fout = os.Stdout
 	}
 
-	var wg sync.WaitGroup
+	return fin, fout
+}
+
+func encrypt() {
+	defer un(trace("encrypt"))
+	encIn, encOut := io.Pipe()
+	leftMost, rightMost := cryptors.CreateEncryptMachine(iCnt, tntMachine...)
+	fin, fout := getInputAndOutputFiles()
 	fout.WriteString(fmt.Sprintf("%s\n", iCnt))
 
 	// Go routine to read the output from the encIn, encrypt it and
 	// sends it to the ascii85.NewEncoder.
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		defer deferClose("Closing encOut.", encOut.Close)
 		defer un(trace("Go encIn -> encrypt -> ascii85.newEncoder"))
-		flateIn := filters.ToFlate(fin)
+		// flateIn := filters.ToFlate(fin)
+		flateIn := fin
 		var err error
 		var cnt int
 		plainText := make([]byte, 0)
@@ -493,12 +501,11 @@ func encrypt() {
 					blk.Length = cryptors.CypherBlockBytes
 					leftMost <- blk
 					blk = <-rightMost
-					cnt, err = encOut.Write([]byte(encodeCypherBlock(blk)))
+					cnt, err = encOut.Write(blk.Marshall())
 					checkFatal(err)
-					// pt := make([]byte, 0)
-					// pt = append(pt, plainText[cryptors.CypherBlockBytes:]...)
-					// plainText = pt
-					plainText = plainText[cryptors.CypherBlockBytes:]
+					pt := make([]byte, 0)
+					pt = append(pt, plainText[cryptors.CypherBlockBytes:]...)
+					plainText = pt
 				}
 			} else if len(plainText) > 0 { // encrypt any remaining input.
 				var e error
@@ -507,7 +514,7 @@ func encrypt() {
 				blk.Length = int8(len(plainText))
 				leftMost <- blk
 				blk = <-rightMost
-				cnt, e = encOut.Write([]byte(encodeCypherBlock(blk)))
+				cnt, e = encOut.Write((blk.Marshall()))
 				checkFatal(e)
 			}
 		}
@@ -519,38 +526,16 @@ func encrypt() {
 		_ = <-rightMost
 	}()
 
-	// Read the output of encodeCypherBlock and send it to STDOUT.
+	// Read the marshalled CyperBlock and send it to STDOUT.
 	defer deferClose("Closing STDOUT", fout.Close)
-	_, err = io.Copy(fout, filters.SplitToLines(filters.ToAscii85(encIn)))
+	_, err := io.Copy(fout, filters.SplitToLines(filters.ToAscii85(encIn)))
 	checkFatal(err)
 	wg.Wait()
 }
 
 func decrypt() {
 	defer un(trace("decrypt"))
-	var err error
-	var fin *os.File
-	if len(inputFileName) > 0 {
-		if inputFileName == "-" {
-			fin = os.Stdin
-		}
-		fin, err = os.Open(inputFileName)
-		checkFatal(err)
-	} else {
-		fin = os.Stdin
-	}
-
-	var fout *os.File
-	if len(outputFileName) > 0 {
-		if outputFileName == "-" {
-			fout = os.Stdout
-		} else {
-			fout, err = os.Create(outputFileName)
-			checkFatal(err)
-		}
-	} else {
-		fout = os.Stdout
-	}
+	fin, fout := getInputAndOutputFiles()
 
 	defer deferClose("decrypt -> Closing STDOUT", fout.Close)
 	bRdr := bufio.NewReader(fin)
@@ -571,7 +556,6 @@ func decrypt() {
 		defer deferClose("decrypt -> closing decWrtr", decWrtr.Close)
 		var err error = nil
 		var cnt int
-		var blk cryptors.CypherBlock
 		encText := make([]byte, 0)
 		aRdr := filters.FromAscii85(filters.CombineLines(bRdr))
 
@@ -584,7 +568,8 @@ func decrypt() {
 				encText = append(encText, b[:cnt]...)
 
 				for len(encText) >= cryptors.CypherBlockBytes+1 {
-					blk = *decodeCypherBlock(encText[:cryptors.CypherBlockBytes+1])
+					var blk cryptors.CypherBlock
+					blk = *blk.Unmarshall(encText[:cryptors.CypherBlockBytes+1])
 					leftMost <- blk
 					blk = <-rightMost
 					_, e := decWrtr.Write(blk.CypherBlock[:blk.Length])
@@ -595,10 +580,17 @@ func decrypt() {
 				}
 			}
 		}
+
+		// shutdown the decryption machine by processing a CypherBlock with zero
+		// value length field.
+		var blk cryptors.CypherBlock
+		leftMost <- blk
+		_ = <-rightMost
 	}()
 
-	_, err = io.Copy(fout, filters.FromFlate(decRdr))
-	wg.Wait()
+	// _, err = io.Copy(fout, filters.FromFlate(decRdr))
+	_, err = io.Copy(fout, decRdr)
+	wg.Wait() //
 }
 
 func readCounterFile(defaultMap map[string]*big.Int) map[string]*big.Int {
