@@ -7,7 +7,7 @@ import (
 
 const (
 	BitsPerByte             = 8
-	CypherBlockSize         = 256
+	CypherBlockSize         = 256 // bits
 	CypherBlockBytes        = CypherBlockSize / BitsPerByte
 	MaximumRotorSize        = 8192
 	NumberPermutationCycles = 4
@@ -43,7 +43,8 @@ var (
 		{47, 53, 71, 85}} // Number of unique states: 15,033,185 [360,796,440]
 
 	// CyclePermutations is an array of possible orderings that a particular
-	// set of four (4) cycle sized that take.  This is used to increase the
+	// set of four (4) cycle sizes can take.  This is used to increase the number
+	// of bitperms that can be generated from the randp table, increasing the
 	// complexity that the cryptoanalysis faces.
 	CyclePermutations = [...][NumberPermutationCycles]int{
 		{0, 1, 2, 3}, {0, 1, 3, 2}, {0, 2, 1, 3}, {0, 2, 3, 1}, {0, 3, 2, 1}, {0, 3, 1, 2},
@@ -57,13 +58,14 @@ var (
 )
 
 // CypherBlock is the data processed by the crypters (rotors and permutators).
-// It consistes of the length in bytes to process and the data to process.
+// It consistes of the length in bytes to process and the (32 bytes of) data to
+// process.
 type CypherBlock struct {
 	Length      int8
 	CypherBlock [CypherBlockBytes]byte
 }
 
-// Marshall converts a CypherBlock into a byte slice
+// Marshall converts a CypherBlock into a slice of bytes
 func (cblk *CypherBlock) Marshall() []byte {
 	b := make([]byte, 0, 0)
 	b = append(b, byte(cblk.Length))
@@ -71,7 +73,7 @@ func (cblk *CypherBlock) Marshall() []byte {
 	return b
 }
 
-// Unmarshall converts a byte slice (created by Marshall) into a CypherBlock
+// Unmarshall converts a slice of bytes (created by Marshall) into a CypherBlock
 func (cblk *CypherBlock) Unmarshall(b []byte) *CypherBlock {
 	blk := new(CypherBlock)
 	blk.Length = int8(b[0])
@@ -86,6 +88,8 @@ type Crypter interface {
 	Apply_G(*[CypherBlockBytes]byte) *[CypherBlockBytes]byte
 }
 
+// Counter is a cryptor that does not encrypt/decrypt any data but counts the
+// number of clobks that were encrypted.
 type Counter struct {
 	index *big.Int
 }
@@ -105,10 +109,6 @@ func (cntr *Counter) Apply_F(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byt
 
 func (cntr *Counter) Apply_G(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
 	return blk
-}
-
-func SetIndex(ecm Crypter, idx *big.Int) {
-	ecm.SetIndex(idx)
 }
 
 func AddBlock(blk, key *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {

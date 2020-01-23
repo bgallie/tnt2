@@ -182,7 +182,7 @@ func init() {
 		tntMachine[i] = proFormaMachine[v]
 	}
 
-	tntMachine[8] = counter
+	tntMachine[len(tntMachine)-1] = counter
 }
 
 func createProFormaMachine(machineFileName string) *[]cryptors.Crypter {
@@ -421,20 +421,6 @@ func updatePermutator(p *permutator.Permutator, left, right chan cryptors.Cypher
 	cycleSizesIndex = (cycleSizesIndex + 1) % len(cryptors.CycleSizes)
 }
 
-// func encodeCypherBlock(blk cryptors.CypherBlock) []byte {
-// 	b := make([]byte, 0, 0)
-// 	b = append(b, byte(blk.Length))
-// 	b = append(b, blk.CypherBlock[:]...)
-// 	return b
-// }
-
-// func decodeCypherBlock(bytes []byte) *cryptors.CypherBlock {
-// 	blk := new(cryptors.CypherBlock)
-// 	blk.Length = int8(bytes[0])
-// 	_ = copy(blk.CypherBlock[:], bytes[1:])
-// 	return blk
-// }
-
 func getInputAndOutputFiles() (*os.File, *os.File) {
 	var fin *os.File
 	var err error
@@ -623,6 +609,7 @@ func writeCounterFile(wMap map[string]*big.Int) error {
 }
 
 func main() {
+	// defer profile.Start().Stop()
 	if encode {
 		encrypt()
 		cMap[mKey] = tntMachine[len(tntMachine)-1].Index()
