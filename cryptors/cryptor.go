@@ -19,7 +19,7 @@ var (
 	// numbers less than 8160 to allow for 256 bit splce at the end of the rotor.
 	// The rotor sizes selected from this list will maximizes the number of
 	// unique states the rotors can take.
-	RotorSizes = []int{
+	RotorSizes = [...]int{
 		7523, 7529, 7537, 7541, 7547, 7549, 7559, 7561, 7573, 7577,
 		7583, 7589, 7591, 7603, 7607, 7621, 7639, 7643, 7649, 7669,
 		7673, 7681, 7687, 7691, 7699, 7703, 7717, 7723, 7727, 7741,

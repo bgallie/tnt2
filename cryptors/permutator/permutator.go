@@ -12,14 +12,15 @@ import (
 )
 
 // cycle describes a cycle for the permutator so it can adjust the permutation
-// table used to permutate the block.  TNT currently uses 4 cycles to rearrange
+// table used to permutate the block.  TNT2 currently uses 4 cycles to rearrange
+// Randp into bitPerm
 type Cycle struct {
 	Start   int // The starting point (into randp) for this cycle.
 	Length  int // The length of the cycle.
 	Current int // The point in the cycle [0 .. cycle.length-1] to start
 }
 
-// Permutator is a type that defines a permutation cryptor in TNT.
+// Permutator is a type that defines a permutation cryptor in TNT2.
 type Permutator struct {
 	CurrentState  int                            // Current number of cycles for this permutator.
 	MaximalStates int                            // Maximum number of cycles this permutator can have before repeating.
@@ -56,7 +57,7 @@ func New(cycleSizes []int, randp []byte) *Permutator {
 	return &p
 }
 
-// Update the permutator with a new initialCycles and randp
+// Update the permutator with a new initialCycles and Randp
 func (p *Permutator) Update(cycleSizes []int, randp []byte) {
 	p.Randp = randp
 	p.Cycles = make([]Cycle, len(cycleSizes))
