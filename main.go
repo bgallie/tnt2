@@ -148,12 +148,23 @@ func init() {
 		iCnt = cMap[mKey]
 	}
 
-	// Define a random order of rotor sizes based on the key.
-	rotorSizes = key.Perm(len(cryptors.RotorSizes))
+	// Shuffle the order of rotor sizes based on the key.
+	for k := len(cryptors.RotorSizes); k > 2; k-- {
+		l := key.Int32n(int32(k))
+		cryptors.RotorSizes[k], cryptors.RotorSizes[l] =
+			cryptors.RotorSizes[l], cryptors.RotorSizes[k]
+	}
+	cryptors.RotorSizes[2], cryptors.RotorSizes[1] =
+		cryptors.RotorSizes[1], cryptors.RotorSizes[2]
 
 	// Define a random order of cycle sizes based on the key.
-	cycleSizes = key.Perm(len(cryptors.CycleSizes))
-	cycleSizesIndex = int(key.Int32n(int32(len(cycleSizes))))
+	for k := len(cryptors.CycleSizes); k > 2; k-- {
+		l := key.Int32n(int32(k))
+		cryptors.CycleSizes[k], cryptors.CycleSizes[l] =
+			cryptors.CycleSizes[l], cryptors.CycleSizes[k]
+	}
+	cryptors.CycleSizes[2], cryptors.CycleSizes[1] =
+		cryptors.CycleSizes[1], cryptors.CycleSizes[2]
 
 	// Update the rotors and permutators in a very non-linear fashion.
 	for pfCnt, machine := range proFormaMachine {
@@ -374,7 +385,7 @@ func updateRotor(r *rotor.Rotor, left, right chan cryptors.CypherBlock) {
 	blkSlice := blk.CypherBlock[:]
 	copy(blkSlice, key.XORKeyStream(blkSlice))
 	blk.Length = cryptors.CypherBlockBytes
-	rotorSize := cryptors.RotorSizes[rotorSizes[rotorSizesIndex]]
+	rotorSize := cryptors.RotorSizes[rotorSizesIndex]
 	rotorSizesIndex = (rotorSizesIndex + 1) % len(cryptors.RotorSizes)
 	start := int(key.Int32n(int32(rotorSize)))
 	step := int(key.Int32n(int32(rotorSize)))
