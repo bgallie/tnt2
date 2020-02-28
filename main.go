@@ -149,7 +149,7 @@ func init() {
 	}
 
 	// Shuffle the order of rotor sizes based on the key.
-	for k := len(cryptors.RotorSizes); k > 2; k-- {
+	for k := len(cryptors.RotorSizes) - 1; k > 2; k-- {
 		l := key.Int32n(int32(k))
 		cryptors.RotorSizes[k], cryptors.RotorSizes[l] =
 			cryptors.RotorSizes[l], cryptors.RotorSizes[k]
@@ -158,7 +158,7 @@ func init() {
 		cryptors.RotorSizes[1], cryptors.RotorSizes[2]
 
 	// Define a random order of cycle sizes based on the key.
-	for k := len(cryptors.CycleSizes); k > 2; k-- {
+	for k := len(cryptors.CycleSizes) - 1; k > 2; k-- {
 		l := key.Int32n(int32(k))
 		cryptors.CycleSizes[k], cryptors.CycleSizes[l] =
 			cryptors.CycleSizes[l], cryptors.CycleSizes[k]
@@ -478,8 +478,8 @@ func encrypt() {
 		defer wg.Done()
 		defer deferClose("Closing encOut.", encOut.Close)
 		defer un(trace("Go encIn -> encrypt -> ascii85.newEncoder"))
-		// flateIn := filters.ToFlate(fin)
-		flateIn := fin
+		flateIn := filters.ToFlate(fin)
+		// flateIn := fin
 		var err error
 		var cnt int
 		plainText := make([]byte, 0)
@@ -585,8 +585,8 @@ func decrypt() {
 		_ = <-rightMost
 	}()
 
-	// _, err = io.Copy(fout, filters.FromFlate(decRdr))
-	_, err = io.Copy(fout, decRdr)
+	_, err = io.Copy(fout, filters.FromFlate(decRdr))
+	// _, err = io.Copy(fout, decRdr)
 	wg.Wait() //
 }
 
