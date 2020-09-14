@@ -74,7 +74,7 @@ func init() {
 	flag.StringVar(&inputFileName, "if", "", "input file name (shorthand)")
 	flag.StringVar(&outputFileName, "outputFile", "", "output file name")
 	flag.StringVar(&outputFileName, "of", "", "output file name (shorthand)")
-	flag.StringVar(&proFormaFileName, "proformaFile", "", "proForma file name (shorthand)")
+	flag.StringVar(&proFormaFileName, "proformaFile", "", "proForma file name")
 	flag.StringVar(&proFormaFileName, "pf", "", "proForma file name (shorthand)")
 	flag.BoolVar(&encode, "encode", false, "encrypt data")
 	flag.BoolVar(&encode, "e", false, "encrypt data (shorthand)")
