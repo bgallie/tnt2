@@ -2,6 +2,8 @@
 package cryptors
 
 import (
+	"bytes"
+	"fmt"
 	"math/big"
 )
 
@@ -79,6 +81,16 @@ func (cblk *CypherBlock) Unmarshall(b []byte) *CypherBlock {
 	blk.Length = int8(b[0])
 	_ = copy(blk.CypherBlock[:], b[1:])
 	return blk
+}
+
+// String formats a string representing the permutator (as Go source code).
+func (cblk *CypherBlock) String() string {
+	var output bytes.Buffer
+	output.WriteString(fmt.Sprint("CypherBlock: "))
+	output.WriteString(fmt.Sprintf("\t     Length: %d\n", cblk.Length))
+	output.WriteString(fmt.Sprintf("\tCypherBlock:\t% X\n", cblk.CypherBlock[0:16]))
+	output.WriteString(fmt.Sprintf("\t\t\t% X", cblk.CypherBlock[16:]))
+	return output.String()
 }
 
 type Crypter interface {

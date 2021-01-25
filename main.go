@@ -498,6 +498,7 @@ func encrypt() {
 					blk.Length = cryptors.CypherBlockBytes
 					leftMost <- blk
 					blk = <-rightMost
+					log.Println(blk.String())
 					cnt, err = encOut.Write(blk.Marshall())
 					checkFatal(err)
 					pt := make([]byte, 0)
@@ -510,6 +511,7 @@ func encrypt() {
 				_ = copy(blk.CypherBlock[:], plainText[:blk.Length])
 				blk.Length = int8(len(plainText))
 				leftMost <- blk
+				log.Println(blk)
 				blk = <-rightMost
 				cnt, e = encOut.Write((blk.Marshall()))
 				checkFatal(e)
