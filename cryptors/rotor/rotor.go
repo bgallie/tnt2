@@ -24,16 +24,7 @@ func New(size, start, step int, rotor []byte) *Rotor {
 	r.Size = size
 	r.Step = step
 	r.Rotor = rotor
-	var i, j uint
-	j = uint(r.Size)
-	for i = 0; i < 256; i++ {
-		if bitops.GetBit(r.Rotor, i) {
-			bitops.SetBit(r.Rotor, j)
-		} else {
-			bitops.ClrBit(r.Rotor, j)
-		}
-		j++
-	}
+	r.sliceRotor()
 	return &r
 }
 
@@ -42,6 +33,10 @@ func (r *Rotor) Update(size, start, step int, rotor []byte) {
 	r.Size = size
 	r.Step = step
 	r.Rotor = rotor
+	r.sliceRotor()
+}
+
+func (r *Rotor) sliceRotor() {
 	var i, j uint
 	j = uint(r.Size)
 	for i = 0; i < 256; i++ {
