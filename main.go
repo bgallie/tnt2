@@ -53,6 +53,7 @@ var (
 	cntrFileName     string
 	inputFileName    string
 	outputFileName   string
+	logFileName      string
 	proFormaFileName string
 	proFormaFile     os.File
 	inputFile        = os.Stdin
@@ -63,6 +64,7 @@ var (
 	checkFatal       = utilities.CheckFatal
 	turnOffLogging   = utilities.TurnOffLogging
 	turnOnLogging    = utilities.TurnOnLogging
+	setLogFileName   = utilities.SetLogFileName
 )
 
 func init() {
@@ -74,6 +76,8 @@ func init() {
 	flag.StringVar(&inputFileName, "if", "", "input file name (shorthand)")
 	flag.StringVar(&outputFileName, "outputFile", "", "output file name")
 	flag.StringVar(&outputFileName, "of", "", "output file name (shorthand)")
+	flag.StringVar(&logFileName, "logFile", "", "log file name [implies -log]")
+	flag.StringVar(&logFileName, "lf", "", "log file name (shorthand) [implies -l]")
 	flag.StringVar(&proFormaFileName, "proformaFile", "", "proForma file name")
 	flag.StringVar(&proFormaFileName, "pf", "", "proForma file name (shorthand)")
 	flag.BoolVar(&encode, "encode", false, "encrypt data")
@@ -115,6 +119,11 @@ func init() {
 	}
 
 	key = jc1.NewUberJc1([]byte(secret))
+
+	if len(logFileName) != 0 {
+		setLogFileName(logFileName)
+		turnOnLogging() // Set the log file to the named log file.
+	}
 
 	if !logIt {
 		turnOffLogging()
@@ -511,7 +520,7 @@ func encrypt() {
 				_ = copy(blk.CypherBlock[:], plainText[:blk.Length])
 				blk.Length = int8(len(plainText))
 				leftMost <- blk
-				log.Println(blk)
+				log.Println(blk.String())
 				blk = <-rightMost
 				cnt, e = encOut.Write((blk.Marshall()))
 				checkFatal(e)
@@ -571,6 +580,7 @@ func decrypt() {
 					blk = *blk.Unmarshall(encText[:cryptors.CypherBlockBytes+1])
 					leftMost <- blk
 					blk = <-rightMost
+					log.Println(blk.String())
 					_, e := decWrtr.Write(blk.CypherBlock[:blk.Length])
 					checkFatal(e)
 					pt := make([]byte, 0)
