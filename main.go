@@ -28,6 +28,7 @@ import (
 )
 
 const (
+	// Constants used within TNT2
 	Tnt2Comment   = "TNT2 Encrypted Data"
 	Tnt2Name      = "os.Stdin"
 	Tnt2CountFile = ".tnt2"
@@ -138,7 +139,7 @@ func init() {
 	// Get a 'checksum' of the encryption key.  This is used as a key to store
 	// the number of blocks encrypted during the last session.
 	var blk cryptors.CypherBlock
-	// var cksum [cryptors.CypherBlockBytes]byte
+	var cksum [cryptors.CypherBlockBytes]byte
 	var eCksum [int((cryptors.CypherBlockBytes / 4.0) * 5)]byte
 	blk.Length = cryptors.CypherBlockBytes
 	_ = copy(blk.CypherBlock[:], key.XORKeyStream(cksum[:]))
@@ -176,7 +177,7 @@ func init() {
 		cryptors.CycleSizes[1], cryptors.CycleSizes[2]
 
 	// Update the rotors and permutators in a very non-linear fashion.
-	for _, machine := range proFormaMachine {
+	for pfCnt, machine := range proFormaMachine {
 		switch v := machine.(type) {
 		default:
 			fmt.Fprintf(os.Stderr, "Unknown machine: %v\n", v)
@@ -368,7 +369,7 @@ func createProFormaMachine(machineFileName string) *[]cryptors.Crypter {
 		var permutator1, permutator2 *permutator.Permutator
 		newMachine = []cryptors.Crypter{rotor1, rotor2, permutator1, rotor3, rotor4, permutator2, rotor5, rotor6}
 
-		for _, machine := range newMachine {
+		for cnt, machine := range newMachine {
 			switch v := machine.(type) {
 			default:
 				fmt.Fprintf(os.Stderr, "Unknown machine: %v\n", v)
