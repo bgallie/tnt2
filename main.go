@@ -28,10 +28,7 @@ import (
 )
 
 const (
-	// Constants used within TNT2
-	Tnt2Comment   = "TNT2 Encrypted Data"
-	Tnt2Name      = "os.Stdin"
-	Tnt2CountFile = ".tnt2"
+	tnt2CountFile = ".tnt2"
 	usage         = "tnt2 [[-decode | -d] | [-encode | -e]] <inputfile >outputfile"
 )
 
@@ -50,7 +47,6 @@ var (
 	iCnt             *big.Int
 	logIt            bool
 	cMap             map[string]*big.Int
-	nullFile         *os.File
 	cntrFileName     string
 	inputFileName    string
 	outputFileName   string
@@ -134,7 +130,7 @@ func init() {
 	leftMost, rightMost := cryptors.CreateEncryptMachine(cryptors.BigZero, proFormaMachine...)
 	u, err := user.Current()
 	checkFatal(err)
-	cntrFileName = fmt.Sprintf("%s%c%s", u.HomeDir, os.PathSeparator, Tnt2CountFile)
+	cntrFileName = fmt.Sprintf("%s%c%s", u.HomeDir, os.PathSeparator, tnt2CountFile)
 
 	// Get a 'checksum' of the encryption key.  This is used as a key to store
 	// the number of blocks encrypted during the last session.
