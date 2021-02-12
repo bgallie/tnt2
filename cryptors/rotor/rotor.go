@@ -1,4 +1,4 @@
-// rotor
+// Package rotor - define the rotor type and it's methods
 package rotor
 
 import (
@@ -10,6 +10,7 @@ import (
 	"github.com/bgallie/tnt2/cryptors/bitops"
 )
 
+// Rotor - the type of the TNT2 rotor
 type Rotor struct {
 	Size    int
 	Start   int
@@ -18,6 +19,7 @@ type Rotor struct {
 	Rotor   []byte
 }
 
+// New - creates a new Rotor with the given size, start, step and rotor data.
 func New(size, start, step int, rotor []byte) *Rotor {
 	var r Rotor
 	r.Start, r.Current = start, start
@@ -28,14 +30,15 @@ func New(size, start, step int, rotor []byte) *Rotor {
 	return &r
 }
 
-func (r *Rotor) Update(size, start, step int, rotor []byte) {
+// Update - updates the given Rotor with a new size, start and step.
+func (r *Rotor) Update(size, start, step int) {
 	r.Start, r.Current = start, start
 	r.Size = size
 	r.Step = step
-	r.Rotor = rotor
 	r.sliceRotor()
 }
 
+// sliceRotor - appends the first 256 bits of the rotor to the end of the rotor.
 func (r *Rotor) sliceRotor() {
 	var i, j uint
 	j = uint(r.Size)
@@ -49,26 +52,29 @@ func (r *Rotor) sliceRotor() {
 	}
 }
 
-func (rotor *Rotor) SetIndex(idx *big.Int) {
+// SetIndex - set the current rotor position based on the given index
+func (r *Rotor) SetIndex(idx *big.Int) {
 	// Special case if idx == 0
 	if idx.Sign() == 0 {
-		rotor.Current = rotor.Start
+		r.Current = r.Start
 	} else {
 		p := new(big.Int)
 		q := new(big.Int)
-		r := new(big.Int)
-		p = p.Mul(idx, new(big.Int).SetInt64(int64(rotor.Step)))
-		p = p.Add(p, new(big.Int).SetInt64(int64(rotor.Start)))
-		q, r = q.DivMod(p, new(big.Int).SetInt64(int64(rotor.Size)), r)
-		rotor.Current = int(r.Int64())
+		rem := new(big.Int)
+		p = p.Mul(idx, new(big.Int).SetInt64(int64(r.Step)))
+		p = p.Add(p, new(big.Int).SetInt64(int64(r.Start)))
+		q, rem = q.DivMod(p, new(big.Int).SetInt64(int64(r.Size)), rem)
+		r.Current = int(rem.Int64())
 	}
 }
 
-func (rotor *Rotor) Index() *big.Int {
+// Index - Rotor does no track the index.
+func (r *Rotor) Index() *big.Int {
 	return nil
 }
 
-func (r *Rotor) Apply_F(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
+// ApplyF - encrypts the given block of data
+func (r *Rotor) ApplyF(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
 	var res [cryptors.CypherBlockBytes]byte
 	ress := res[:]
 	rotor := r.Rotor
@@ -86,7 +92,8 @@ func (r *Rotor) Apply_F(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherB
 	return cryptors.AddBlock(blk, &res)
 }
 
-func (r *Rotor) Apply_G(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
+// ApplyG - decrypts the given block of data
+func (r *Rotor) ApplyG(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
 	var res [cryptors.CypherBlockBytes]byte
 	ress := res[:]
 	rotor := r.Rotor[:]
@@ -104,23 +111,24 @@ func (r *Rotor) Apply_G(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherB
 	return cryptors.SubBlock(blk, &res)
 }
 
-func (rotor *Rotor) String() string {
+// String - converts a Rotor to a string representation of the Rotor.
+func (r *Rotor) String() string {
 	var output bytes.Buffer
-	rotorLen := len(rotor.Rotor)
+	rotorLen := len(r.Rotor)
 	output.WriteString(fmt.Sprintf("rotor.New(%d, %d, %d, []byte{\n",
-		rotor.Size, rotor.Start, rotor.Step))
+		r.Size, r.Start, r.Step))
 	for i := 0; i < rotorLen; i += 16 {
 		output.WriteString("\t")
 		if i+16 < rotorLen {
-			for _, k := range rotor.Rotor[i : i+16] {
+			for _, k := range r.Rotor[i : i+16] {
 				output.WriteString(fmt.Sprintf("%d, ", k))
 			}
 		} else {
-			l := len(rotor.Rotor[i:])
-			for _, k := range rotor.Rotor[i : i+l-1] {
+			l := len(r.Rotor[i:])
+			for _, k := range r.Rotor[i : i+l-1] {
 				output.WriteString(fmt.Sprintf("%d, ", k))
 			}
-			output.WriteString(fmt.Sprintf("%d})", rotor.Rotor[i+l-1]))
+			output.WriteString(fmt.Sprintf("%d})", r.Rotor[i+l-1]))
 		}
 		output.WriteString("\n")
 	}

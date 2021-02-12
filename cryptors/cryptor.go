@@ -1,4 +1,4 @@
-// cyptor
+// Package cryptors - define constants and interfaces used by TNT2
 package cryptors
 
 import (
@@ -7,6 +7,7 @@ import (
 	"math/big"
 )
 
+// Define constants needed for TNT2
 const (
 	BitsPerByte             = 8
 	CypherBlockSize         = 256 // bits
@@ -17,7 +18,7 @@ const (
 )
 
 var (
-	// rotoSizes is an array of possible rotor sizes.  It consists of prime
+	// RotorSizes is an array of possible rotor sizes.  It consists of prime
 	// numbers less than 8160 to allow for 256 bit splce at the end of the rotor.
 	// The rotor sizes selected from this list will maximizes the number of
 	// unique states the rotors can take.
@@ -54,9 +55,10 @@ var (
 		{2, 0, 1, 3}, {2, 0, 3, 1}, {2, 1, 0, 3}, {2, 1, 3, 0}, {2, 3, 1, 0}, {2, 3, 0, 1},
 		{3, 0, 1, 2}, {3, 0, 2, 1}, {3, 1, 0, 2}, {3, 1, 2, 0}, {3, 2, 1, 0}, {3, 2, 0, 1}}
 
-	// Define big ints zero and one.
+	// BigZero - the big int value for zero.
 	BigZero = big.NewInt(0)
-	BigOne  = big.NewInt(1)
+	// BigOne - the big int value for one.
+	BigOne = big.NewInt(1)
 )
 
 // CypherBlock is the data processed by the crypters (rotors and permutators).
@@ -93,11 +95,12 @@ func (cblk *CypherBlock) String() string {
 	return output.String()
 }
 
+// Crypter interface
 type Crypter interface {
 	SetIndex(*big.Int)
 	Index() *big.Int
-	Apply_F(*[CypherBlockBytes]byte) *[CypherBlockBytes]byte
-	Apply_G(*[CypherBlockBytes]byte) *[CypherBlockBytes]byte
+	ApplyF(*[CypherBlockBytes]byte) *[CypherBlockBytes]byte
+	ApplyG(*[CypherBlockBytes]byte) *[CypherBlockBytes]byte
 }
 
 // Counter is a cryptor that does not encrypt/decrypt any data but counts the
@@ -106,23 +109,28 @@ type Counter struct {
 	index *big.Int
 }
 
+// SetIndex - sets the initial index value
 func (cntr *Counter) SetIndex(index *big.Int) {
 	cntr.index = index
 }
 
+// Index - retrieves the current index value
 func (cntr *Counter) Index() *big.Int {
 	return cntr.index
 }
 
-func (cntr *Counter) Apply_F(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
+// ApplyF - increments the counter for each block that is encrypted.
+func (cntr *Counter) ApplyF(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
 	cntr.index.Add(cntr.index, BigOne)
 	return blk
 }
 
-func (cntr *Counter) Apply_G(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
+// ApplyG - this function does nothing during decryption.
+func (cntr *Counter) ApplyG(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
 	return blk
 }
 
+// AddBlock - adds (not XOR) the data to be encrypted with the key.
 func AddBlock(blk, key *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
 	var p int
 
@@ -135,6 +143,7 @@ func AddBlock(blk, key *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
 	return blk
 }
 
+// SubBlock - subtracts (not XOR) the key from the data to be decrypted
 func SubBlock(blk, key *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
 	var p int
 
@@ -147,6 +156,8 @@ func SubBlock(blk, key *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
 	return blk
 }
 
+// EncryptMachine - set up a rotor, permutator, or counter to encrypt a block
+// read from the left (input channel) and send it out on the right (output channel)
 func EncryptMachine(ecm Crypter, left chan CypherBlock) chan CypherBlock {
 	right := make(chan CypherBlock)
 	go func(ecm Crypter, left chan CypherBlock, right chan CypherBlock) {
@@ -157,7 +168,7 @@ func EncryptMachine(ecm Crypter, left chan CypherBlock) chan CypherBlock {
 				break
 			}
 
-			ecm.Apply_F(&inp.CypherBlock)
+			ecm.ApplyF(&inp.CypherBlock)
 			right <- inp
 		}
 	}(ecm, left, right)
@@ -165,6 +176,8 @@ func EncryptMachine(ecm Crypter, left chan CypherBlock) chan CypherBlock {
 	return right
 }
 
+// DecryptMachine - set up a rotor, permutator, or counter to decrypt a block
+// read from the left (input channel) and send it out on the right (output channel)
 func DecryptMachine(ecm Crypter, left chan CypherBlock) chan CypherBlock {
 	right := make(chan CypherBlock)
 	go func(ecm Crypter, left chan CypherBlock, right chan CypherBlock) {
@@ -175,7 +188,7 @@ func DecryptMachine(ecm Crypter, left chan CypherBlock) chan CypherBlock {
 				break
 			}
 
-			ecm.Apply_G(&inp.CypherBlock)
+			ecm.ApplyG(&inp.CypherBlock)
 			right <- inp
 		}
 	}(ecm, left, right)
@@ -183,6 +196,7 @@ func DecryptMachine(ecm Crypter, left chan CypherBlock) chan CypherBlock {
 	return right
 }
 
+// CreateEncryptMachine -
 func CreateEncryptMachine(index *big.Int, ecms ...Crypter) (left chan CypherBlock, right chan CypherBlock) {
 	if ecms != nil {
 		idx := 0
@@ -202,6 +216,7 @@ func CreateEncryptMachine(index *big.Int, ecms ...Crypter) (left chan CypherBloc
 	return
 }
 
+// CreateDecryptMachine -
 func CreateDecryptMachine(index *big.Int, ecms ...Crypter) (left chan CypherBlock, right chan CypherBlock) {
 	if ecms != nil {
 		idx := len(ecms) - 1

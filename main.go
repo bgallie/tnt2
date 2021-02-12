@@ -178,9 +178,7 @@ func init() {
 		default:
 			fmt.Fprintf(os.Stderr, "Unknown machine: %v\n", v)
 		case *rotor.Rotor:
-			r := new(rotor.Rotor)
-			updateRotor(r, leftMost, rightMost)
-			proFormaMachine[pfCnt] = r
+			updateRotor(machine.(*rotor.Rotor), leftMost, rightMost)
 		case *permutator.Permutator:
 			p := new(permutator.Permutator)
 			updatePermutator(p, leftMost, rightMost)
@@ -387,26 +385,34 @@ func createProFormaMachine(machineFileName string) *[]cryptors.Crypter {
 }
 
 func updateRotor(r *rotor.Rotor, left, right chan cryptors.CypherBlock) {
-	var blk cryptors.CypherBlock
-	blkSlice := blk.CypherBlock[:]
-	copy(blkSlice, key.XORKeyStream(blkSlice))
-	blk.Length = cryptors.CypherBlockBytes
+	// Get size, start and step of the new rotor
 	rotorSize := cryptors.RotorSizes[rotorSizesIndex]
 	rotorSizesIndex = (rotorSizesIndex + 1) % len(cryptors.RotorSizes)
 	start := int(key.Int32n(int32(rotorSize)))
 	step := int(key.Int32n(int32(rotorSize)))
-	blkBytes := ((rotorSize + 256) / 8) + 1
-	blkCnt := (blkBytes / 32) + 1
-	blkBytes = blkCnt * 32
-	rotor := make([]byte, 0, blkBytes) // newRotor[:0]
+	var blk cryptors.CypherBlock
+	blk.Length = cryptors.CypherBlockBytes
+	blkSlice := blk.CypherBlock[:]
+	copy(blkSlice, key.XORKeyStream(blkSlice))
 
+	// Adjust the size of r.Rotor to match rotorSize.
+	blkBytes := ((rotorSize + cryptors.CypherBlockSize) / 8) + 1
+	blkCnt := (blkBytes / 32) + 1
+	blkBytes = (blkCnt * 32) - len(r.Rotor)
+	adjRotor := make([]byte, blkBytes)
+	r.Rotor = append(r.Rotor, adjRotor...)
+
+	// Fill the rotor with random data using TNT2 encryption to generate the
+	// random data.
 	for i := 0; i < blkCnt; i++ {
 		left <- blk
 		blk = <-right
-		rotor = append(rotor, blk.CypherBlock[:]...)
+		copy(r.Rotor[i*cryptors.CypherBlockBytes:], blk.CypherBlock[:])
 	}
 
-	r.Update(rotorSize, start, step, rotor) // newRotor[:])
+	// update the rotor with the new size, start, and step and slice the first
+	// 256 bits of the rotor to the end of the rotor.
+	r.Update(rotorSize, start, step)
 }
 
 func updatePermutator(p *permutator.Permutator, left, right chan cryptors.CypherBlock) {

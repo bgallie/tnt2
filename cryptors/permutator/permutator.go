@@ -1,4 +1,4 @@
-// permutator project main.go
+// Package permutator project main.go
 package permutator
 
 import (
@@ -11,7 +11,7 @@ import (
 	"github.com/bgallie/tnt2/cryptors/bitops"
 )
 
-// cycle describes a cycle for the permutator so it can adjust the permutation
+// Cycle describes a cycle for the permutator so it can adjust the permutation
 // table used to permutate the block.  TNT2 currently uses 4 cycles to rearrange
 // Randp into bitPerm
 type Cycle struct {
@@ -113,7 +113,7 @@ func (p *Permutator) cycle() {
 	wg.Wait()
 }
 
-// Set the Permutator to the state it would be in after encoding 'idx - 1' blocks
+// SetIndex - set the Permutator to the state it would be in after encoding 'idx - 1' blocks
 // of data.
 func (p *Permutator) SetIndex(idx *big.Int) {
 	q := new(big.Int)
@@ -134,8 +134,8 @@ func (p *Permutator) Index() *big.Int {
 	return nil
 }
 
-// Apply_F performs the forward permutation on the 32 byte block of data.
-func (p *Permutator) Apply_F(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
+// ApplyF performs the forward permutation on the 32 byte block of data.
+func (p *Permutator) ApplyF(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
 	var res [cryptors.CypherBlockBytes]byte
 	blks := blk[:]
 	ress := res[:]
@@ -151,8 +151,8 @@ func (p *Permutator) Apply_F(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.Cy
 	return blk
 }
 
-// Apply_G performs the reverse permutation on the 32 byte block of data.
-func (p *Permutator) Apply_G(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
+// ApplyG performs the reverse permutation on the 32 byte block of data.
+func (p *Permutator) ApplyG(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
 	var res [cryptors.CypherBlockBytes]byte
 	blks := blk[:]
 	ress := res[:]
