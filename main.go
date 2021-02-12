@@ -539,7 +539,7 @@ func encrypt() {
 
 	// Read the marshalled CyperBlock and send it to STDOUT.
 	defer deferClose("Closing STDOUT", fout.Close)
-	_, err := io.Copy(fout, filters.SplitToLines(filters.ToAscii85(encIn)))
+	_, err := io.Copy(fout, filters.SplitToLines(filters.ToASCII85(encIn)))
 	checkFatal(err)
 	wg.Wait()
 }
@@ -568,7 +568,7 @@ func decrypt() {
 		var err error = nil
 		var cnt int
 		encText := make([]byte, 0)
-		aRdr := filters.FromAscii85(filters.CombineLines(bRdr))
+		aRdr := filters.FromASCII85(filters.CombineLines(bRdr))
 
 		for err != io.EOF {
 			b := make([]byte, 1024, 1024)
