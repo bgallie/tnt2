@@ -161,6 +161,7 @@ func SubBlock(blk, key *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
 func EncryptMachine(ecm Crypter, left chan CypherBlock) chan CypherBlock {
 	right := make(chan CypherBlock)
 	go func(ecm Crypter, left chan CypherBlock, right chan CypherBlock) {
+		defer close(right)
 		for {
 			inp := <-left
 			if inp.Length <= 0 {
@@ -181,6 +182,7 @@ func EncryptMachine(ecm Crypter, left chan CypherBlock) chan CypherBlock {
 func DecryptMachine(ecm Crypter, left chan CypherBlock) chan CypherBlock {
 	right := make(chan CypherBlock)
 	go func(ecm Crypter, left chan CypherBlock, right chan CypherBlock) {
+		defer close(right)
 		for {
 			inp := <-left
 			if inp.Length <= 0 {
