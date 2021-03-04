@@ -13,6 +13,7 @@ import (
 	"io"
 	"log"
 	"math/big"
+	"math/bits"
 	"os"
 	"os/user"
 	"strings"
@@ -26,6 +27,8 @@ import (
 	"github.com/bgallie/utilities"
 	"golang.org/x/crypto/ssh/terminal"
 )
+
+type genPerm func(int) []byte
 
 const (
 	tnt2CountFile = ".tnt2"
@@ -53,6 +56,7 @@ var (
 	logFileName      string
 	proFormaFileName string
 	proFormaFile     os.File
+	perm             genPerm
 	inputFile        = os.Stdin
 	outputFile       = os.Stdout
 	un               = utilities.Un
@@ -132,6 +136,50 @@ func init() {
 	checkFatal(err)
 	cntrFileName = fmt.Sprintf("%s%c%s", u.HomeDir, os.PathSeparator, tnt2CountFile)
 
+	var blkByteN cryptors.CypherBlock
+	blkByteN.Length = cryptors.CypherBlockBytes
+	blkSlice := blkByteN.CypherBlock[:]
+	copy(blkSlice, key.XORKeyStream(blkSlice))
+	byteN := func(n int) int {
+		for {
+			if blkByteN.Length == cryptors.CypherBlockBytes {
+				leftMost <- blkByteN
+				blkByteN = <-rightMost
+				blkByteN.Length = 0
+				fmt.Fprintln(os.Stderr, blkByteN)
+			}
+
+			guess := uint8(blkByteN.CypherBlock[blkByteN.Length])
+			blkByteN.Length++
+			bitLen := bits.Len(uint(guess)) % 8
+
+			if bitLen == 0 {
+				bitLen = 8
+			}
+
+			guess &= uint8(int(1<<bitLen) - 1)
+
+			if int(guess) < n {
+				return int(guess)
+			}
+		}
+	}
+
+	perm = func(n int) []byte {
+		res := make([]byte, n, n)
+
+		for i := range res {
+			res[i] = byte(i)
+		}
+
+		for i := (n - 1); i > 0; i-- {
+			j := byteN(i)
+			res[i], res[j] = res[j], res[i]
+		}
+
+		return res
+	}
+
 	// Get a 'checksum' of the encryption key.  This is used as a key to store
 	// the number of blocks encrypted during the last session.
 	var blk cryptors.CypherBlock
@@ -156,7 +204,7 @@ func init() {
 
 	// Shuffle the order of rotor sizes based on the key.
 	for k := len(cryptors.RotorSizes) - 1; k > 2; k-- {
-		l := key.Int32n(int32(k))
+		l := byteN(k)
 		cryptors.RotorSizes[k], cryptors.RotorSizes[l] =
 			cryptors.RotorSizes[l], cryptors.RotorSizes[k]
 	}
@@ -165,7 +213,7 @@ func init() {
 
 	// Define a random order of cycle sizes based on the key.
 	for k := len(cryptors.CycleSizes) - 1; k > 2; k-- {
-		l := key.Int32n(int32(k))
+		l := byteN(k)
 		cryptors.CycleSizes[k], cryptors.CycleSizes[l] =
 			cryptors.CycleSizes[l], cryptors.CycleSizes[k]
 	}
@@ -191,7 +239,7 @@ func init() {
 	// Update the tntMachine to change the order of rotors and permutators in a randon order.
 	tntMachine = make([]cryptors.Crypter, 9, 9)
 	// Scramble the order of the rotors and permutators
-	tntOrder := key.Perm(len(tntMachine) - 1)
+	tntOrder := perm(len(tntMachine) - 1)
 
 	for i, v := range tntOrder {
 		tntMachine[i] = proFormaMachine[v]
@@ -426,24 +474,61 @@ func updateRotor(r *rotor.Rotor, left, right chan cryptors.CypherBlock) {
 
 func updatePermutator(p *permutator.Permutator, left, right chan cryptors.CypherBlock) {
 	var randp [cryptors.CypherBlockSize]byte
-	var blk cryptors.CypherBlock
-	blkSlice := blk.CypherBlock[:]
-	copy(blkSlice, key.XORKeyStream(blkSlice))
-	blk.Length = cryptors.CypherBlockBytes
-	left <- blk
-	blk = <-right
+	// var blk cryptors.CypherBlock
+	// blk.Length = cryptors.CypherBlockBytes
+	// blkSlice := blk.CypherBlock[:]
+	// copy(blkSlice, key.XORKeyStream(blkSlice))
+
+	// byteN := func(n int) int {
+	// 	for {
+	// 		if blk.Length == cryptors.CypherBlockBytes {
+	// 			left <- blk
+	// 			blk = <-right
+	// 			blk.Length = 0
+	// 		}
+
+	// 		guess := uint8(blk.CypherBlock[blk.Length])
+	// 		blk.Length++
+	// 		bitLen := bits.Len(uint(guess)) % 8
+
+	// 		if bitLen == 0 {
+	// 			bitLen = 8
+	// 		}
+
+	// 		guess &= uint8(int(1<<bitLen) - 1)
+
+	// 		if int(guess) < n {
+	// 			return int(guess)
+	// 		}
+	// 	}
+	// }
+
+	// perm := func(n int) []byte {
+	// 	res := make([]byte, n, n)
+
+	// 	for i := range res {
+	// 		res[i] = byte(i)
+	// 	}
+
+	// 	for i := (n - 1); i > 0; i-- {
+	// 		j := byteN(i)
+	// 		res[i], res[j] = res[j], res[i]
+	// 	}
+
+	// 	return res
+	// }
 
 	// Create a table of byte values [0...255] in a random order
-	randi := key.Perm(cryptors.CypherBlockSize)
-
-	for idx, val := range randi {
-		randp[idx] = byte(val)
+	for i, val := range perm(cryptors.CypherBlockSize) {
+		randp[i] = val
 	}
+	fmt.Fprintf(os.Stderr, "randp:%v\n", randp)
 
 	// Chose a cryptors.CycleSizes and randomize order of the values
 	length := len(cryptors.CycleSizes[cycleSizesIndex])
 	cycles := make([]int, length, length)
-	randi = key.Perm(length)
+	randi := perm(length)
+	fmt.Fprintf(os.Stderr, "randi:%v\n", randi)
 
 	for idx, val := range randi {
 		cycles[idx] = cryptors.CycleSizes[cycleSizesIndex][val]
