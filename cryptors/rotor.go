@@ -1,13 +1,10 @@
-// Package rotor - define the rotor type and it's methods
-package rotor
+// Package cryptors - define the rotor type and it's methods
+package cryptors
 
 import (
 	"bytes"
 	"fmt"
 	"math/big"
-
-	"github.com/bgallie/tnt2/cryptors"
-	"github.com/bgallie/tnt2/cryptors/bitops"
 )
 
 // Rotor - the type of the TNT2 rotor
@@ -20,7 +17,7 @@ type Rotor struct {
 }
 
 // New - creates a new Rotor with the given size, start, step and rotor data.
-func New(size, start, step int, rotor []byte) *Rotor {
+func NewRotor(size, start, step int, rotor []byte) *Rotor {
 	var r Rotor
 	r.Start, r.Current = start, start
 	r.Size = size
@@ -43,10 +40,10 @@ func (r *Rotor) sliceRotor() {
 	var i, j uint
 	j = uint(r.Size)
 	for i = 0; i < 256; i++ {
-		if bitops.GetBit(r.Rotor, i) {
-			bitops.SetBit(r.Rotor, j)
+		if GetBit(r.Rotor, i) {
+			SetBit(r.Rotor, j)
 		} else {
-			bitops.ClrBit(r.Rotor, j)
+			ClrBit(r.Rotor, j)
 		}
 		j++
 	}
@@ -74,41 +71,41 @@ func (r *Rotor) Index() *big.Int {
 }
 
 // ApplyF - encrypts the given block of data
-func (r *Rotor) ApplyF(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
-	var res [cryptors.CypherBlockBytes]byte
+func (r *Rotor) ApplyF(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
+	var res [CypherBlockBytes]byte
 	ress := res[:]
 	rotor := r.Rotor
 	idx := r.Current
 
-	for cnt := 0; cnt < cryptors.CypherBlockSize; cnt++ {
-		if bitops.GetBit(rotor, uint(idx)) {
-			bitops.SetBit(ress, uint(cnt))
+	for cnt := 0; cnt < CypherBlockSize; cnt++ {
+		if GetBit(rotor, uint(idx)) {
+			SetBit(ress, uint(cnt))
 		}
 
 		idx++
 	}
 
 	r.Current = (r.Current + r.Step) % r.Size
-	return cryptors.AddBlock(blk, &res)
+	return AddBlock(blk, &res)
 }
 
 // ApplyG - decrypts the given block of data
-func (r *Rotor) ApplyG(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
-	var res [cryptors.CypherBlockBytes]byte
+func (r *Rotor) ApplyG(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
+	var res [CypherBlockBytes]byte
 	ress := res[:]
 	rotor := r.Rotor[:]
 	idx := r.Current
 
-	for cnt := 0; cnt < cryptors.CypherBlockSize; cnt++ {
-		if bitops.GetBit(rotor, uint(idx)) {
-			bitops.SetBit(ress, uint(cnt))
+	for cnt := 0; cnt < CypherBlockSize; cnt++ {
+		if GetBit(rotor, uint(idx)) {
+			SetBit(ress, uint(cnt))
 		}
 
 		idx++
 	}
 
 	r.Current = (r.Current + r.Step) % r.Size
-	return cryptors.SubBlock(blk, &res)
+	return SubBlock(blk, &res)
 }
 
 // String - converts a Rotor to a string representation of the Rotor.
