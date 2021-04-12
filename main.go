@@ -6,21 +6,18 @@ package main
 
 import (
 	"bufio"
-	"encoding/ascii85"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"math/big"
-	"math/bits"
 	"os"
 	"os/user"
 	"strings"
 	"sync"
 
 	"github.com/bgallie/filters"
-	"github.com/bgallie/jc1"
 	"github.com/bgallie/tnt2/cryptors"
 	"github.com/bgallie/utilities"
 	"golang.org/x/crypto/ssh/terminal"
@@ -32,21 +29,14 @@ const (
 )
 
 var (
-	encode           bool              // Flag: True to encode, False to decode
-	decode           bool              // Flag: True to decode, False to encode
-	useASCII85       bool              // Flag: True to using ascii85 encoding, False to use PEM encoding
-	counter          *cryptors.Counter = new(cryptors.Counter)
-	proFormaMachine  []cryptors.Crypter
-	tntMachine       []cryptors.Crypter
-	rotorSizes       []int
-	rotorSizesIndex  int
-	cycleSizes       []int
-	cycleSizesIndex  int
-	key              *jc1.UberJc1
-	mKey             string
+	encode           bool // Flag: True to encode, False to decode
+	decode           bool // Flag: True to decode, False to encode
+	useASCII85       bool // Flag: True to using ascii85 encoding, False to use PEM encoding
+	tntMachine       cryptors.Tnt2Engine
 	iCnt             *big.Int
 	logIt            bool
 	cMap             map[string]*big.Int
+	mKey             string
 	cntrFileName     string
 	inputFileName    string
 	outputFileName   string
@@ -117,8 +107,6 @@ func init() {
 		fmt.Fprintln(os.Stderr, "You must supply a password.")
 		os.Exit(1)
 	}
-	// Initialize the uberJc1 generator with the passphrase.
-	key = jc1.NewUberJc1([]byte(secret))
 
 	if len(logFileName) != 0 {
 		setLogFileName(logFileName)
@@ -129,281 +117,37 @@ func init() {
 		turnOffLogging()
 	}
 
-	// Create an ecryption machine based on the proForma rotors and permutators.
-	proFormaMachine = *createProFormaMachine(proFormaFileName)
-	leftMost, rightMost := cryptors.CreateEncryptMachine(cryptors.BigZero, proFormaMachine...)
-	// Create a random number function [func(max int) int] that uses psudo-
-	// random data generated the proforma encryption machine.
-	intn = createRandomNumberFunction(leftMost, rightMost)
-	// Create a permutaton function that returns bytes in [0, n] in (psudo-)
-	// random order
-	perm = func(n int) []byte {
-		res := make([]byte, n, n)
-
-		for i := range res {
-			res[i] = byte(i)
-		}
-
-		for i := (n - 1); i > 0; i-- {
-			j := intn(i)
-			res[i], res[j] = res[j], res[i]
-		}
-
-		return res
+	iCnt, good := new(big.Int).SetString(cnt, 10)
+	if !good {
+		log.Fatalf("Failed converting counter to a big.Int: [%s]\n", cnt)
 	}
+
+	tntMachine.Init([]byte(secret), proFormaFileName)
+	if encode {
+		tntMachine.SetEngineType("E")
+	} else {
+		tntMachine.SetEngineType("D")
+	}
+	// Now the the engine type is set, build the cipher machine.
+	tntMachine.BuildCipherMachine()
+	mKey = tntMachine.CounterKey()
+	log.Printf("mKey: %s\n", mKey)
 	// Get the counter file name based on the current user.
 	u, err := user.Current()
 	checkFatal(err)
 	cntrFileName = fmt.Sprintf("%s%c%s", u.HomeDir, os.PathSeparator, tnt2CountFile)
-
-	// Get a 'checksum' of the encryption key.  This is used as a key to store
-	// the block number to use as a starting point for the next encryption.
-	var blk cryptors.CypherBlock
-	var cksum [cryptors.CypherBlockBytes]byte
-	var eCksum [int((cryptors.CypherBlockBytes / 4.0) * 5)]byte
-	blk.Length = cryptors.CypherBlockBytes
-	_ = copy(blk.CypherBlock[:], key.XORKeyStream(cksum[:]))
-	leftMost <- blk
-	blk = <-rightMost
-	ascii85.Encode(eCksum[:], blk.CypherBlock[:])
-	mKey = string(eCksum[:])
 	// Read in the map of counts from the file which holds the counts and get
 	// the count to use to encode the file.
 	cMap = make(map[string]*big.Int)
 	cMap = readCounterFile(cMap)
-
-	iCnt, _ = new(big.Int).SetString(cnt, 10)
 	if cMap[mKey] == nil {
 		cMap[mKey] = iCnt
 	} else {
 		iCnt = cMap[mKey]
 	}
-
-	// Shuffle the order of rotor sizes based on the key.
-	for k := len(cryptors.RotorSizes) - 1; k > 2; k-- {
-		l := intn(k)
-		cryptors.RotorSizes[k], cryptors.RotorSizes[l] =
-			cryptors.RotorSizes[l], cryptors.RotorSizes[k]
-	}
-	cryptors.RotorSizes[2], cryptors.RotorSizes[1] =
-		cryptors.RotorSizes[1], cryptors.RotorSizes[2]
-
-	// Define a random order of cycle sizes based on the key.
-	for k := len(cryptors.CycleSizes) - 1; k > 2; k-- {
-		l := intn(k)
-		cryptors.CycleSizes[k], cryptors.CycleSizes[l] =
-			cryptors.CycleSizes[l], cryptors.CycleSizes[k]
-	}
-	cryptors.CycleSizes[2], cryptors.CycleSizes[1] =
-		cryptors.CycleSizes[1], cryptors.CycleSizes[2]
-
-	// Update the rotors and permutators in a very non-linear fashion.
-	for pfCnt, machine := range proFormaMachine {
-		switch v := machine.(type) {
-		default:
-			fmt.Fprintf(os.Stderr, "Unknown machine: %v\n", v)
-		case *cryptors.Rotor:
-			updateRotor(machine.(*cryptors.Rotor), leftMost, rightMost)
-		case *cryptors.Permutator:
-			p := new(cryptors.Permutator)
-			updatePermutator(p, leftMost, rightMost)
-			proFormaMachine[pfCnt] = p
-		case *cryptors.Counter:
-			machine.(*cryptors.Counter).SetIndex(cryptors.BigZero)
-		}
-	}
-
-	// Update the tntMachine to change the order of rotors and permutators in a randon order.
-	tntMachine = make([]cryptors.Crypter, 9, 9)
-	// Scramble the order of the rotors and permutators
-	tntOrder := perm(len(tntMachine) - 1)
-	for i, v := range tntOrder {
-		tntMachine[i] = proFormaMachine[v]
-	}
-	// Add the special 'counter' encryptor to count the number of blocks encrypted
-	tntMachine[len(tntMachine)-1] = counter
-}
-
-/*
-	createRandomNumberFunction returns a function [func(max int) int] that will
-	return a uniform random value in [0, max) using psudo-random bytes generated
-	by the TNT2 encryption algorithm. It panics if max <= 0.
-
-	'left' is the input channel and 'right' is the output channel for the TNT2
-	encryption machine.
-*/
-func createRandomNumberFunction(left chan cryptors.CypherBlock, right chan cryptors.CypherBlock) func(int) int {
-	/*
-		'blk' contains the data that is encrypted and is initializd to data
-		generated from the uberJc1 algorithm based on the secret key enterd
-		by the user.
-	*/
-	var blk cryptors.CypherBlock
-	blk.Length = cryptors.CypherBlockBytes
-	blkSlice := blk.CypherBlock[:]
-	go copy(blkSlice, key.XORKeyStream(blkSlice))
-
-	return func(max int) int {
-		for {
-			if max <= 0 {
-				panic("argument to intn is <= 0")
-			}
-
-			n := max - 1
-			// bitLen is the maximum bit length needed to encode a value < max.
-			bitLen := bits.Len(uint(n))
-			if bitLen == 0 {
-				// the only valid result is 0
-				return n
-			}
-			// k is the maximum byte length needed to encode a value < max.
-			k := (bitLen + 7) / 8
-			// b is the number of bits in the most significant byte of max-1.
-			b := uint(bitLen % 8)
-			if b == 0 {
-				b = 8
-			}
-
-			bytes := make([]byte, k)
-
-			for {
-				// If there are not enough bytes in 'blk' to get 'k' bytes, get
-				// the next 32 psudo-random bytes into 'blk'
-				if blk.Length+int8(k) > 31 {
-					blk.Length = cryptors.CypherBlockBytes
-					left <- blk
-					blk = <-right
-					blk.Length = 0
-				}
-				// Get the next 'k' psudo-random bytes generated by the TNT2
-				// encryption machine.
-				copy(bytes[0:], blk.CypherBlock[blk.Length:blk.Length+int8(k)])
-				blk.Length += int8(k)
-
-				// Clear bits in the first byte to increase the probability
-				// that the candidate is < max.
-				bytes[0] &= uint8(int(1<<b) - 1)
-
-				// Change the data in the byte slice into an integer ('n')
-				n = 0
-				for _, val := range bytes {
-					n = (n << 8) | int(val)
-				}
-
-				if n < max {
-					return n
-				}
-			}
-		}
-	}
-}
-
-/*
-	createProFormaMachine initializes the pro-forma machine used to create the
-	TNT2 encryption machine.  If the machineFileName is not empty then the
-	pro-forma machine is loaded from that file, else the hardcoded rotors and
-	permutators are used to initialize the pro-formaa machine.
-*/
-func createProFormaMachine(machineFileName string) *[]cryptors.Crypter {
-	var newMachine []cryptors.Crypter
-	if len(machineFileName) == 0 {
-		log.Println("Using built in proforma rotors and permutators")
-
-		// Create the proforma encryption machine.  The layout of the machine is:
-		// 		rotor, rotor, permutator, rotor, rotor, permutator, rotor, rotor
-		newMachine = []cryptors.Crypter{cryptors.Rotor1, cryptors.Rotor2, cryptors.Permutator1,
-			cryptors.Rotor3, cryptors.Rotor4, cryptors.Permutator2,
-			cryptors.Rotor5, cryptors.Rotor6}
-	} else {
-		log.Printf("Using proforma rotors and permutators from %s\n", machineFileName)
-		in, err := os.Open(machineFileName)
-		checkFatal(err)
-		jDecoder := json.NewDecoder(in)
-		// Create the proforma encryption machine from the given proforma machine file.
-		// The layout of the machine is:
-		// 		rotor, rotor, permutator, rotor, rotor, permutator, rotor, rotor
-		var rotor1, rotor2, rotor3, rotor4, rotor5, rotor6 *cryptors.Rotor
-		var permutator1, permutator2 *cryptors.Permutator
-		newMachine = []cryptors.Crypter{rotor1, rotor2, permutator1, rotor3, rotor4, permutator2, rotor5, rotor6}
-
-		for cnt, machine := range newMachine {
-			switch v := machine.(type) {
-			default:
-				fmt.Fprintf(os.Stderr, "Unknown machine: %v\n", v)
-			case *cryptors.Rotor:
-				r := new(cryptors.Rotor)
-				err = jDecoder.Decode(&r)
-				checkFatal(err)
-				newMachine[cnt] = r
-			case *cryptors.Permutator:
-				p := new(cryptors.Permutator)
-				err = jDecoder.Decode(&p)
-				checkFatal(err)
-				newMachine[cnt] = p
-			}
-		}
-	}
-
-	return &newMachine
-}
-
-/*
-	updateRotor will update the given (proforma) rotor in place using (psudo-
-	random) data generated by the TNT2 encrytption algorithm using the pro-forma
-	rotors and permutators.
-*/
-func updateRotor(r *cryptors.Rotor, left, right chan cryptors.CypherBlock) {
-	// Get size, start and step of the new rotor
-	rotorSize := cryptors.RotorSizes[rotorSizesIndex]
-	rotorSizesIndex = (rotorSizesIndex + 1) % len(cryptors.RotorSizes)
-	start := intn(rotorSize)
-	step := intn(rotorSize)
-
-	// blkCnt is the total number of bytes needed to hold rotorSize bits + a slice of 256 bits
-	blkCnt := (((rotorSize + cryptors.CypherBlockSize + 7) / 8) + 31) / 32
-	// blkBytes is the number of bytes rotor r needs to increase to hold the new rotor.
-	blkBytes := (blkCnt * 32) - len(r.Rotor)
-	// Adjust the size of r.Rotor to match the new rotor size.
-	adjRotor := make([]byte, blkBytes)
-	r.Rotor = append(r.Rotor, adjRotor...)
-	var blk cryptors.CypherBlock
-	blk.Length = cryptors.CypherBlockBytes
-	blkSlice := blk.CypherBlock[:]
-	// Fill the rotor with random data using TNT2 encryption to generate the
-	// random data by encrypting the next 32 bytes of data from the uberJC1
-	// algorithm until the next rotor is filled.
-	for i := 0; i < blkCnt; i++ {
-		copy(blkSlice, key.XORKeyStream(blkSlice))
-		left <- blk
-		blk = <-right
-		copy(r.Rotor[i*cryptors.CypherBlockBytes:], blk.CypherBlock[:])
-	}
-
-	// update the rotor with the new size, start, and step and slice the first
-	// 256 bits of the rotor to the end of the rotor.
-	r.Update(rotorSize, start, step)
-}
-
-/*
-	updatePermutator will update the given (proforma) permutator in place using
-	(psudo-random) data generated by the TNT2 encrytption algorithm using the
-	proforma rotors and permutators.
-*/
-func updatePermutator(p *cryptors.Permutator, left, right chan cryptors.CypherBlock) {
-	var randp [cryptors.CypherBlockSize]byte
-	// Create a table of byte values [0...255] in a random order
-	for i, val := range perm(cryptors.CypherBlockSize) {
-		randp[i] = val
-	}
-	// Chose a cryptors.CycleSizes and randomize order of the values
-	length := len(cryptors.CycleSizes[cycleSizesIndex])
-	cycles := make([]int, length, length)
-	randi := perm(length)
-	for idx, val := range randi {
-		cycles[idx] = cryptors.CycleSizes[cycleSizesIndex][val]
-	}
-	p.Update(cycles, randp[:])
-	cycleSizesIndex = (cycleSizesIndex + 1) % len(cryptors.CycleSizes)
+	log.Printf("cMap: %v\n", cMap)
+	// Now we can set the index of the ciper machine.
+	tntMachine.SetIndex(iCnt)
 }
 
 /*
@@ -446,15 +190,15 @@ func getInputAndOutputFiles() (*os.File, *os.File) {
  */
 func encrypt() {
 	encIn, encOut := io.Pipe()
-	leftMost, rightMost := cryptors.CreateEncryptMachine(iCnt, tntMachine...)
+	leftMost, rightMost := tntMachine.Left(), tntMachine.Right()
 	fin, fout := getInputAndOutputFiles()
 	var blck filters.Block
 	if useASCII85 {
-		fout.WriteString(fmt.Sprintf("%s\n", iCnt))
+		fout.WriteString(fmt.Sprintf("%s\n", tntMachine.Index()))
 	} else {
 		blck.Headers = make(map[string]string)
 		blck.Type = "TNT2 Encoded Message"
-		blck.Headers["Counter"] = fmt.Sprintf("%s", iCnt)
+		blck.Headers["Counter"] = fmt.Sprintf("%s", tntMachine.Index())
 		if len(inputFileName) > 0 && inputFileName != "-" {
 			blck.Headers["FileName"] = inputFileName
 		}
@@ -486,7 +230,7 @@ func encrypt() {
 					blk.Length = cryptors.CypherBlockBytes
 					leftMost <- blk
 					blk = <-rightMost
-					log.Println(blk.String())
+					// log.Println(blk.String())
 					cnt, err = encOut.Write(blk.Marshall())
 					checkFatal(err)
 					pt := make([]byte, 0)
@@ -499,7 +243,7 @@ func encrypt() {
 				_ = copy(blk.CypherBlock[:], plainText[:blk.Length])
 				blk.Length = int8(len(plainText))
 				leftMost <- blk
-				log.Println(blk.String())
+				// log.Println(blk.String())
 				blk = <-rightMost
 				cnt, e = encOut.Write((blk.Marshall()))
 				checkFatal(e)
@@ -550,8 +294,8 @@ func decrypt() {
 			}
 		}
 	}
-
-	leftMost, rightMost := cryptors.CreateDecryptMachine(iCnt, tntMachine...)
+	tntMachine.SetIndex(iCnt)
+	leftMost, rightMost := tntMachine.Left(), tntMachine.Right()
 	decRdr, decWrtr := io.Pipe()
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -582,7 +326,7 @@ func decrypt() {
 					blk = *blk.Unmarshall(encText[:cryptors.CypherBlockBytes+1])
 					leftMost <- blk
 					blk = <-rightMost
-					log.Println(blk.String())
+					// log.Println(blk.String())
 					_, e := decWrtr.Write(blk.CypherBlock[:blk.Length])
 					checkFatal(e)
 					pt := make([]byte, 0)
@@ -634,7 +378,7 @@ func writeCounterFile(wMap map[string]*big.Int) error {
 func main() {
 	if encode {
 		encrypt()
-		cMap[mKey] = tntMachine[len(tntMachine)-1].Index()
+		cMap[mKey] = tntMachine.Index()
 		checkFatal(writeCounterFile(cMap))
 	} else if decode {
 		decrypt()

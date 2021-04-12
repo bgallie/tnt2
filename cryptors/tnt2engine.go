@@ -1,59 +1,52 @@
-// Package cryptors - define tnt2Engine type and it's methods
+// Package cryptors - define Tnt2Engine type and it's methods
 package cryptors
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"math/big"
 	"math/bits"
 	"os"
+	"strings"
 
-	"github.com/bgallie/utilities"
+	"github.com/bgallie/jc1"
 )
 
 var (
-	counter          *cryptors.Counter = new(cryptors.Counter)
-	proFormaMachine  []cryptors.Crypter
-	tntMachine       []cryptors.Crypter
-	rotorSizes       []int
-	rotorSizesIndex  int
-	cycleSizes       []int
-	cycleSizesIndex  int
-	cMap             map[string]*big.Int
-	cntrFileName     string
-	inputFileName    string
-	outputFileName   string
-	logFileName      string
-	proFormaFileName string
-	proFormaFile     os.File
-	perm             func(int) []byte
-	intn             func(int) int
-	inputFile        = os.Stdin
-	outputFile       = os.Stdout
-	checkFatal       = utilities.CheckFatal
-	turnOffLogging   = utilities.TurnOffLogging
-	turnOnLogging    = utilities.TurnOnLogging
-	setLogFileName   = utilities.SetLogFileName
+	counter         *Counter = new(Counter)
+	proFormaMachine []Crypter
+	rotorSizes      []int
+	rotorSizesIndex int
+	cycleSizes      []int
+	cycleSizesIndex int
+	proFormaFile    os.File
+	perm            func(int) []int
+	intn            func(int) int
+	jc1Key          *jc1.UberJc1
 )
 
-type tnt2Engine struct {
-	engineType string // "Encrypt" or "Decrypt"
-	engine     []Crypter
-	input      *io.PipeReader
-	output     *io.PipeWriter
+type Tnt2Engine struct {
+	engineType  string // "Encrypt" or "Decrypt"
+	engine      []Crypter
+	left, right chan CypherBlock
+	cntrKey     string
 }
 
-func (e *tnt2Engine) Input() *io.PipeReader {
-	return e.input
+func (e *Tnt2Engine) Left() chan CypherBlock {
+	return e.left
 }
 
-func (e *tnt2Engine) Output() *io.PipeWriter {
-	return e.output
+func (e *Tnt2Engine) Right() chan CypherBlock {
+	return e.right
 }
 
-func (e *tnt2Engine) Index() (cntr *big.Int) {
+func (e *Tnt2Engine) CounterKey() string {
+	return e.cntrKey
+}
+
+func (e *Tnt2Engine) Index() (cntr *big.Int) {
 	if len(e.engine) != 0 {
 		machine := e.engine[len(e.engine)-1]
 		switch machine.(type) {
@@ -67,25 +60,103 @@ func (e *tnt2Engine) Index() (cntr *big.Int) {
 	return
 }
 
-func (e *tnt2Engine) SetIndex(iCnt *big.Int) {
+func (e *Tnt2Engine) SetIndex(iCnt *big.Int) {
 	for _, machine := range e.engine {
 		machine.SetIndex(iCnt)
 	}
 }
 
-func (e *tnt2Engine) Init(secret []byte, proFormaFile os.File) {
+func (e *Tnt2Engine) SetEngineType(engineType string) {
+	switch string(strings.TrimSpace(engineType)[0]) {
+	case "d", "D":
+		e.engineType = "D"
+	case "e", "E":
+		e.engineType = "E"
+	default:
+		log.Fatalf("Missing or incorrect Tnt2Engine engineType: [%s]", engineType)
+	}
+}
 
+func (e *Tnt2Engine) EngineType() string {
+	return e.engineType
+}
+
+func (e *Tnt2Engine) Init(secret []byte, proFormaFileName string) {
+	jc1Key = jc1.NewUberJc1(secret)
+	// Create an ecryption machine based on the proForma rotors and permutators.
+	proFormaMachine = *createProFormaMachine(proFormaFileName)
+	leftMost, rightMost := CreateEncryptMachine(proFormaMachine...)
+	// Create a random number function [func(max int) int] that uses psudo-
+	// random data generated the proforma encryption machine.
+	intn, perm = createRandomNumberFunctions(leftMost, rightMost)
+	// Get a 'checksum' of the encryption key.  This is used as a key to store
+	// the count of blocks already encrypted to use as a starting point for the
+	// next encryption.
+	var blk CypherBlock
+	var cksum [CypherBlockBytes]byte
+	blk.Length = CypherBlockBytes
+	_ = copy(blk.CypherBlock[:], jc1Key.XORKeyStream(cksum[:]))
+	leftMost <- blk
+	blk = <-rightMost
+	e.cntrKey = hex.EncodeToString(blk.CypherBlock[:])
+	// Create a permutaion of the rotor indices to allow picking the rotors in
+	// a random order based on the key.
+	rotorSizes = perm(len(RotorSizes))
+	// Create a permutaion of cycle sizes indices to allow picking the cycle
+	// sizes in a random order based on the key.
+	cycleSizes = perm(len(CycleSizes))
+	// Update the rotors and permutators in a very non-linear fashion.
+	for pfCnt, machine := range proFormaMachine {
+		switch v := machine.(type) {
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown machine: %v\n", v)
+		case *Rotor:
+			updateRotor(machine.(*Rotor), leftMost, rightMost)
+		case *Permutator:
+			p := new(Permutator)
+			updatePermutator(p, leftMost, rightMost)
+			proFormaMachine[pfCnt] = p
+		case *Counter:
+			machine.(*Counter).SetIndex(BigZero)
+		}
+	}
+	// Now that we have created the new rotors and permutators from the proform
+	// machine, populate the Tnt2Engine with them.
+	e.engine = make([]Crypter, 9, 9)
+	machineOrder := perm(len(proFormaMachine))
+	// log.Println(machineOrder)
+	for idx, val := range machineOrder {
+		e.engine[idx] = proFormaMachine[val]
+	}
+	e.engine[len(e.engine)-1] = counter
+}
+
+func (e *Tnt2Engine) BuildCipherMachine() {
+	switch e.engineType {
+	case "D":
+		e.left, e.right = CreateDecryptMachine(e.engine...)
+	case "E":
+		e.left, e.right = CreateEncryptMachine(e.engine...)
+	default:
+		log.Fatalf("Missing or incorrect Tnt2Engine engineType: [%s]", e.engineType)
+
+	}
 }
 
 /*
-	createRandomNumberFunction returns a function [func(max int) int] that will
-	return a uniform random value in [0, max) using psudo-random bytes generated
-	by the TNT2 encryption algorithm. It panics if max <= 0.
+	createRandomNumberFunctions returns two function:
+	    1:	intn func(max int) int
+				that will return a uniform random value in the range of
+				0..(max-1) using pseudo-random bytes generated by the TNT2
+				encryption algorithm. It panics if max <= 0.
+		2:	perm func(n int) []int
+				that will return an integer slice containing the intergers
+				 0..(n-1) in a random order.
 
 	'left' is the input channel and 'right' is the output channel for the TNT2
 	encryption machine.
 */
-func createRandomNumberFunction(left chan CypherBlock, right chan CypherBlock) func(int) int {
+func createRandomNumberFunctions(left chan CypherBlock, right chan CypherBlock) (func(int) int, func(n int) []int) {
 	/*
 		'blk' contains the data that is encrypted and is initializd to data
 		generated from the uberJc1 algorithm based on the secret key enterd
@@ -94,9 +165,9 @@ func createRandomNumberFunction(left chan CypherBlock, right chan CypherBlock) f
 	var blk CypherBlock
 	blk.Length = CypherBlockBytes
 	blkSlice := blk.CypherBlock[:]
-	go copy(blkSlice, key.XORKeyStream(blkSlice))
+	copy(blkSlice, jc1Key.XORKeyStream(blkSlice))
 
-	return func(max int) int {
+	intn := func(max int) int {
 		for {
 			if max <= 0 {
 				panic("argument to intn is <= 0")
@@ -149,6 +220,23 @@ func createRandomNumberFunction(left chan CypherBlock, right chan CypherBlock) f
 			}
 		}
 	}
+
+	perm := func(n int) []int {
+		res := make([]int, n, n)
+
+		for i := range res {
+			res[i] = i
+		}
+
+		for i := (n - 1); i > 0; i-- {
+			j := intn(i)
+			res[i], res[j] = res[j], res[i]
+		}
+
+		return res
+	}
+
+	return intn, perm
 }
 
 /*
@@ -160,15 +248,15 @@ func createRandomNumberFunction(left chan CypherBlock, right chan CypherBlock) f
 func createProFormaMachine(machineFileName string) *[]Crypter {
 	var newMachine []Crypter
 	if len(machineFileName) == 0 {
-		log.Println("Using built in proforma rotors and permutators")
-
+		// log.Println("Using built in proforma rotors and permutators")
 		// Create the proforma encryption machine.  The layout of the machine is:
 		// 		rotor, rotor, permutator, rotor, rotor, permutator, rotor, rotor
-		newMachine = []Crypter{Rotor1, Rotor2, Permutator1,
+		newMachine = []Crypter{
+			Rotor1, Rotor2, Permutator1,
 			Rotor3, Rotor4, Permutator2,
 			Rotor5, Rotor6}
 	} else {
-		log.Printf("Using proforma rotors and permutators from %s\n", machineFileName)
+		// log.Printf("Using proforma rotors and permutators from %s\n", machineFileName)
 		in, err := os.Open(machineFileName)
 		checkFatal(err)
 		jDecoder := json.NewDecoder(in)
@@ -207,7 +295,7 @@ func createProFormaMachine(machineFileName string) *[]Crypter {
 */
 func updateRotor(r *Rotor, left, right chan CypherBlock) {
 	// Get size, start and step of the new rotor
-	rotorSize := RotorSizes[rotorSizesIndex]
+	rotorSize := RotorSizes[rotorSizes[rotorSizesIndex]]
 	rotorSizesIndex = (rotorSizesIndex + 1) % len(RotorSizes)
 	start := intn(rotorSize)
 	step := intn(rotorSize)
@@ -221,12 +309,11 @@ func updateRotor(r *Rotor, left, right chan CypherBlock) {
 	r.Rotor = append(r.Rotor, adjRotor...)
 	var blk CypherBlock
 	blk.Length = CypherBlockBytes
-	blkSlice := blk.CypherBlock[:]
+	copy(blk.CypherBlock[:], jc1Key.XORKeyStream(blk.CypherBlock[:]))
 	// Fill the rotor with random data using TNT2 encryption to generate the
 	// random data by encrypting the next 32 bytes of data from the uberJC1
 	// algorithm until the next rotor is filled.
 	for i := 0; i < blkCnt; i++ {
-		copy(blkSlice, key.XORKeyStream(blkSlice))
 		left <- blk
 		blk = <-right
 		copy(r.Rotor[i*CypherBlockBytes:], blk.CypherBlock[:])
@@ -246,15 +333,21 @@ func updatePermutator(p *Permutator, left, right chan CypherBlock) {
 	var randp [CypherBlockSize]byte
 	// Create a table of byte values [0...255] in a random order
 	for i, val := range perm(CypherBlockSize) {
-		randp[i] = val
+		randp[i] = byte(val)
 	}
 	// Chose a CycleSizes and randomize order of the values
 	length := len(CycleSizes[cycleSizesIndex])
 	cycles := make([]int, length, length)
 	randi := perm(length)
 	for idx, val := range randi {
-		cycles[idx] = CycleSizes[cycleSizesIndex][val]
+		cycles[idx] = CycleSizes[cycleSizes[cycleSizesIndex]][val]
 	}
 	p.Update(cycles, randp[:])
 	cycleSizesIndex = (cycleSizesIndex + 1) % len(CycleSizes)
+}
+
+func checkFatal(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }

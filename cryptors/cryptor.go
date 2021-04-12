@@ -344,15 +344,13 @@ func DecryptMachine(ecm Crypter, left chan CypherBlock) chan CypherBlock {
 }
 
 // CreateEncryptMachine -
-func CreateEncryptMachine(index *big.Int, ecms ...Crypter) (left chan CypherBlock, right chan CypherBlock) {
+func CreateEncryptMachine(ecms ...Crypter) (left chan CypherBlock, right chan CypherBlock) {
 	if ecms != nil {
 		idx := 0
 		left = make(chan CypherBlock)
-		ecms[idx].SetIndex(index)
 		right = EncryptMachine(ecms[idx], left)
 
 		for idx++; idx < len(ecms); idx++ {
-			ecms[idx].SetIndex(index)
 			right = EncryptMachine(ecms[idx], right)
 		}
 
@@ -364,15 +362,13 @@ func CreateEncryptMachine(index *big.Int, ecms ...Crypter) (left chan CypherBloc
 }
 
 // CreateDecryptMachine -
-func CreateDecryptMachine(index *big.Int, ecms ...Crypter) (left chan CypherBlock, right chan CypherBlock) {
+func CreateDecryptMachine(ecms ...Crypter) (left chan CypherBlock, right chan CypherBlock) {
 	if ecms != nil {
 		idx := len(ecms) - 1
 		left = make(chan CypherBlock)
-		ecms[idx].SetIndex(index)
 		right = DecryptMachine(ecms[idx], left)
 
 		for idx--; idx >= 0; idx-- {
-			ecms[idx].SetIndex(index)
 			right = DecryptMachine(ecms[idx], right)
 		}
 	} else {
