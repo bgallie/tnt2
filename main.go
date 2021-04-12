@@ -131,7 +131,6 @@ func init() {
 	// Now the the engine type is set, build the cipher machine.
 	tntMachine.BuildCipherMachine()
 	mKey = tntMachine.CounterKey()
-	log.Printf("mKey: %s\n", mKey)
 	// Get the counter file name based on the current user.
 	u, err := user.Current()
 	checkFatal(err)
@@ -145,7 +144,6 @@ func init() {
 	} else {
 		iCnt = cMap[mKey]
 	}
-	log.Printf("cMap: %v\n", cMap)
 	// Now we can set the index of the ciper machine.
 	tntMachine.SetIndex(iCnt)
 }
@@ -230,7 +228,6 @@ func encrypt() {
 					blk.Length = cryptors.CypherBlockBytes
 					leftMost <- blk
 					blk = <-rightMost
-					// log.Println(blk.String())
 					cnt, err = encOut.Write(blk.Marshall())
 					checkFatal(err)
 					pt := make([]byte, 0)
@@ -243,7 +240,6 @@ func encrypt() {
 				_ = copy(blk.CypherBlock[:], plainText[:blk.Length])
 				blk.Length = int8(len(plainText))
 				leftMost <- blk
-				// log.Println(blk.String())
 				blk = <-rightMost
 				cnt, e = encOut.Write((blk.Marshall()))
 				checkFatal(e)
@@ -326,7 +322,6 @@ func decrypt() {
 					blk = *blk.Unmarshall(encText[:cryptors.CypherBlockBytes+1])
 					leftMost <- blk
 					blk = <-rightMost
-					// log.Println(blk.String())
 					_, e := decWrtr.Write(blk.CypherBlock[:blk.Length])
 					checkFatal(e)
 					pt := make([]byte, 0)
