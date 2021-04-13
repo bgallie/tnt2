@@ -32,7 +32,7 @@ var (
 	encode           bool // Flag: True to encode, False to decode
 	decode           bool // Flag: True to decode, False to encode
 	useASCII85       bool // Flag: True to using ascii85 encoding, False to use PEM encoding
-	tntMachine       cryptors.Tnt2Engine
+	tntMachine       cryptors.TntEngine
 	iCnt             *big.Int
 	logIt            bool
 	cMap             map[string]*big.Int

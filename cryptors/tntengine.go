@@ -1,4 +1,4 @@
-// Package cryptors - define Tnt2Engine type and it's methods
+// Package cryptors - define TntEngine type and it's methods
 package cryptors
 
 import (
@@ -27,26 +27,26 @@ var (
 	jc1Key          *jc1.UberJc1
 )
 
-type Tnt2Engine struct {
+type TntEngine struct {
 	engineType  string // "Encrypt" or "Decrypt"
 	engine      []Crypter
 	left, right chan CypherBlock
 	cntrKey     string
 }
 
-func (e *Tnt2Engine) Left() chan CypherBlock {
+func (e *TntEngine) Left() chan CypherBlock {
 	return e.left
 }
 
-func (e *Tnt2Engine) Right() chan CypherBlock {
+func (e *TntEngine) Right() chan CypherBlock {
 	return e.right
 }
 
-func (e *Tnt2Engine) CounterKey() string {
+func (e *TntEngine) CounterKey() string {
 	return e.cntrKey
 }
 
-func (e *Tnt2Engine) Index() (cntr *big.Int) {
+func (e *TntEngine) Index() (cntr *big.Int) {
 	if len(e.engine) != 0 {
 		machine := e.engine[len(e.engine)-1]
 		switch machine.(type) {
@@ -60,28 +60,28 @@ func (e *Tnt2Engine) Index() (cntr *big.Int) {
 	return
 }
 
-func (e *Tnt2Engine) SetIndex(iCnt *big.Int) {
+func (e *TntEngine) SetIndex(iCnt *big.Int) {
 	for _, machine := range e.engine {
 		machine.SetIndex(iCnt)
 	}
 }
 
-func (e *Tnt2Engine) SetEngineType(engineType string) {
+func (e *TntEngine) SetEngineType(engineType string) {
 	switch string(strings.TrimSpace(engineType)[0]) {
 	case "d", "D":
 		e.engineType = "D"
 	case "e", "E":
 		e.engineType = "E"
 	default:
-		log.Fatalf("Missing or incorrect Tnt2Engine engineType: [%s]", engineType)
+		log.Fatalf("Missing or incorrect TntEngine engineType: [%s]", engineType)
 	}
 }
 
-func (e *Tnt2Engine) EngineType() string {
+func (e *TntEngine) EngineType() string {
 	return e.engineType
 }
 
-func (e *Tnt2Engine) Init(secret []byte, proFormaFileName string) {
+func (e *TntEngine) Init(secret []byte, proFormaFileName string) {
 	jc1Key = jc1.NewUberJc1(secret)
 	// Create an ecryption machine based on the proForma rotors and permutators.
 	proFormaMachine = *createProFormaMachine(proFormaFileName)
@@ -121,7 +121,7 @@ func (e *Tnt2Engine) Init(secret []byte, proFormaFileName string) {
 		}
 	}
 	// Now that we have created the new rotors and permutators from the proform
-	// machine, populate the Tnt2Engine with them.
+	// machine, populate the TntEngine with them.
 	e.engine = make([]Crypter, 9, 9)
 	machineOrder := perm(len(proFormaMachine))
 	// log.Println(machineOrder)
@@ -131,14 +131,14 @@ func (e *Tnt2Engine) Init(secret []byte, proFormaFileName string) {
 	e.engine[len(e.engine)-1] = counter
 }
 
-func (e *Tnt2Engine) BuildCipherMachine() {
+func (e *TntEngine) BuildCipherMachine() {
 	switch e.engineType {
 	case "D":
 		e.left, e.right = CreateDecryptMachine(e.engine...)
 	case "E":
 		e.left, e.right = CreateEncryptMachine(e.engine...)
 	default:
-		log.Fatalf("Missing or incorrect Tnt2Engine engineType: [%s]", e.engineType)
+		log.Fatalf("Missing or incorrect TntEngine engineType: [%s]", e.engineType)
 
 	}
 }
