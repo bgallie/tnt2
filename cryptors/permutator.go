@@ -1,14 +1,11 @@
-// Package permutator project main.go
-package permutator
+// Package cryptors - define the permutator type and it's methods
+package cryptors
 
 import (
 	"bytes"
 	"fmt"
 	"math/big"
 	"sync"
-
-	"github.com/bgallie/tnt2/cryptors"
-	"github.com/bgallie/tnt2/cryptors/bitops"
 )
 
 // Cycle describes a cycle for the permutator so it can adjust the permutation
@@ -22,15 +19,15 @@ type Cycle struct {
 
 // Permutator is a type that defines a permutation cryptor in TNT2.
 type Permutator struct {
-	CurrentState  int                            // Current number of cycles for this permutator.
-	MaximalStates int                            // Maximum number of cycles this permutator can have before repeating.
-	Cycles        []Cycle                        // Cycles ordered by the current permutation.
-	Randp         []byte                         // Values 0 - 255 in a random order.
-	bitPerm       [cryptors.CypherBlockSize]byte // Permutation table created from randp.
+	CurrentState  int                   // Current number of cycles for this permutator.
+	MaximalStates int                   // Maximum number of cycles this permutator can have before repeating.
+	Cycles        []Cycle               // Cycles ordered by the current permutation.
+	Randp         []byte                // Values 0 - 255 in a random order.
+	bitPerm       [CypherBlockSize]byte // Permutation table created from randp.
 }
 
 // New creates a permutator and initializes it
-func New(cycleSizes []int, randp []byte) *Permutator {
+func NewPermutator(cycleSizes []int, randp []byte) *Permutator {
 	var p Permutator
 	p.Randp = randp
 	p.Cycles = make([]Cycle, len(cycleSizes))
@@ -135,14 +132,14 @@ func (p *Permutator) Index() *big.Int {
 }
 
 // ApplyF performs the forward permutation on the 32 byte block of data.
-func (p *Permutator) ApplyF(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
-	var res [cryptors.CypherBlockBytes]byte
+func (p *Permutator) ApplyF(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
+	var res [CypherBlockBytes]byte
 	blks := blk[:]
 	ress := res[:]
 
 	for i, v := range p.bitPerm {
-		if bitops.GetBit(blks, uint(i)) {
-			bitops.SetBit(ress, uint(v))
+		if GetBit(blks, uint(i)) {
+			SetBit(ress, uint(v))
 		}
 	}
 
@@ -152,14 +149,14 @@ func (p *Permutator) ApplyF(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.Cyp
 }
 
 // ApplyG performs the reverse permutation on the 32 byte block of data.
-func (p *Permutator) ApplyG(blk *[cryptors.CypherBlockBytes]byte) *[cryptors.CypherBlockBytes]byte {
-	var res [cryptors.CypherBlockBytes]byte
+func (p *Permutator) ApplyG(blk *[CypherBlockBytes]byte) *[CypherBlockBytes]byte {
+	var res [CypherBlockBytes]byte
 	blks := blk[:]
 	ress := res[:]
 
 	for i, v := range p.bitPerm {
-		if bitops.GetBit(blks, uint(v)) {
-			bitops.SetBit(ress, uint(i))
+		if GetBit(blks, uint(v)) {
+			SetBit(ress, uint(i))
 		}
 	}
 
@@ -173,16 +170,16 @@ func (p *Permutator) String() string {
 	var output bytes.Buffer
 	output.WriteString(fmt.Sprint("permutator.New([]int{"))
 
-	for _, v := range p.Cycles[0 : cryptors.NumberPermutationCycles-1] {
+	for _, v := range p.Cycles[0 : NumberPermutationCycles-1] {
 		output.WriteString(fmt.Sprintf("%d, ", v.Length))
 	}
 
-	output.WriteString(fmt.Sprintf("%d}, []byte{\n", p.Cycles[cryptors.NumberPermutationCycles-1].Length))
+	output.WriteString(fmt.Sprintf("%d}, []byte{\n", p.Cycles[NumberPermutationCycles-1].Length))
 
-	for i := 0; i < cryptors.CypherBlockSize; i += 16 {
+	for i := 0; i < CypherBlockSize; i += 16 {
 		output.WriteString("\t")
 
-		if i != (cryptors.CypherBlockSize - 16) {
+		if i != (CypherBlockSize - 16) {
 			for _, k := range p.Randp[i : i+16] {
 				output.WriteString(fmt.Sprintf("%d, ", k))
 			}

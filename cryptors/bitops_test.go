@@ -1,5 +1,5 @@
-// bitops project bitops.go
-package bitops
+// Package cryptors - bit manipulation routines tests
+package cryptors
 
 import (
 	"reflect"

@@ -1,5 +1,5 @@
-// Package bitops - bit manipulation routines
-package bitops
+// Package cryptors - bit manipulation routines
+package cryptors
 
 // SetBit - set bit in a byte array
 func SetBit(ary []byte, bit uint) []byte {
