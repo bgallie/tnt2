@@ -18,7 +18,7 @@ import (
 	"sync"
 
 	"github.com/bgallie/filters"
-	"github.com/bgallie/tnt2/cryptors"
+	"github.com/bgallie/tntEngine"
 	"github.com/bgallie/utilities"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -32,7 +32,7 @@ var (
 	encode           bool // Flag: True to encode, False to decode
 	decode           bool // Flag: True to decode, False to encode
 	useASCII85       bool // Flag: True to using ascii85 encoding, False to use PEM encoding
-	tntMachine       cryptors.TntEngine
+	tntMachine       tntEngine.TntEngine
 	iCnt             *big.Int
 	logIt            bool
 	cMap             map[string]*big.Int
@@ -215,7 +215,7 @@ func encrypt() {
 		plainText := make([]byte, 0)
 
 		for err != io.EOF {
-			var blk cryptors.CypherBlock
+			var blk tntEngine.CypherBlock
 			b := make([]byte, 1024, 1024)
 			cnt, err = flateIn.Read(b)
 			checkFatal(err)
@@ -223,15 +223,15 @@ func encrypt() {
 			if err != io.EOF {
 				plainText = append(plainText, b[:cnt]...)
 
-				for len(plainText) >= cryptors.CypherBlockBytes {
+				for len(plainText) >= tntEngine.CypherBlockBytes {
 					_ = copy(blk.CypherBlock[:], plainText)
-					blk.Length = cryptors.CypherBlockBytes
+					blk.Length = tntEngine.CypherBlockBytes
 					leftMost <- blk
 					blk = <-rightMost
 					cnt, err = encOut.Write(blk.Marshall())
 					checkFatal(err)
 					pt := make([]byte, 0)
-					pt = append(pt, plainText[cryptors.CypherBlockBytes:]...)
+					pt = append(pt, plainText[tntEngine.CypherBlockBytes:]...)
 					plainText = pt
 				}
 			} else if len(plainText) > 0 { // encrypt any remaining input.
@@ -248,7 +248,7 @@ func encrypt() {
 
 		// shutdown the encryption machine by processing a CypherBlock with zero
 		// value length field.
-		var blk cryptors.CypherBlock
+		var blk tntEngine.CypherBlock
 		leftMost <- blk
 		_ = <-rightMost
 	}()
@@ -317,15 +317,15 @@ func decrypt() {
 			if err != io.EOF {
 				encText = append(encText, b[:cnt]...)
 
-				for len(encText) >= cryptors.CypherBlockBytes+1 {
-					var blk cryptors.CypherBlock
-					blk = *blk.Unmarshall(encText[:cryptors.CypherBlockBytes+1])
+				for len(encText) >= tntEngine.CypherBlockBytes+1 {
+					var blk tntEngine.CypherBlock
+					blk = *blk.Unmarshall(encText[:tntEngine.CypherBlockBytes+1])
 					leftMost <- blk
 					blk = <-rightMost
 					_, e := decWrtr.Write(blk.CypherBlock[:blk.Length])
 					checkFatal(e)
 					pt := make([]byte, 0)
-					pt = append(pt, encText[cryptors.CypherBlockBytes+1:]...)
+					pt = append(pt, encText[tntEngine.CypherBlockBytes+1:]...)
 					encText = pt
 				}
 			}
@@ -333,7 +333,7 @@ func decrypt() {
 
 		// shutdown the decryption machine by processing a CypherBlock with zero
 		// value length field.
-		var blk cryptors.CypherBlock
+		var blk tntEngine.CypherBlock
 		leftMost <- blk
 		_ = <-rightMost
 	}()
