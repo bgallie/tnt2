@@ -17,67 +17,54 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/bgallie/filters"
-	"github.com/bgallie/tntEngine"
-	"github.com/bgallie/utilities"
+	"github.com/bgallie/filters/ascii85"
+	"github.com/bgallie/filters/flate"
+	"github.com/bgallie/filters/lines"
+	"github.com/bgallie/filters/pem"
+	"github.com/bgallie/tntengine"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
 	tnt2CountFile = ".tnt2"
-	usage         = "tnt2 [[-decode | -d] | [-encode | -e]] <inputfile >outputfile"
+	usage         = "tnt2 -d|-e [-c bigInt][-nc][-a][-pf proFormaFile][-if inputfile][-of outputfile]"
 )
 
 var (
 	encode           bool // Flag: True to encode, False to decode
 	decode           bool // Flag: True to decode, False to encode
 	useASCII85       bool // Flag: True to using ascii85 encoding, False to use PEM encoding
-	tntMachine       tntEngine.TntEngine
+	noCompression    bool // Flag: True to not use flate to compress the file.
+	tntMachine       tntengine.TntEngine
 	iCnt             *big.Int
-	logIt            bool
 	cMap             map[string]*big.Int
 	mKey             string
 	cntrFileName     string
 	inputFileName    string
 	outputFileName   string
-	logFileName      string
 	proFormaFileName string
 	proFormaFile     os.File
 	perm             func(int) []byte
 	intn             func(int) int
 	inputFile        = os.Stdin
 	outputFile       = os.Stdout
-	checkFatal       = utilities.CheckFatal
-	turnOffLogging   = utilities.TurnOffLogging
-	turnOnLogging    = utilities.TurnOnLogging
-	setLogFileName   = utilities.SetLogFileName
 )
 
 func init() {
 	// Parse the command line arguments.
 	var cnt = "-1"
-	flag.StringVar(&cnt, "count", "0", "initial count")
-	flag.StringVar(&cnt, "c", "0", "initial count (shorthand)")
-	flag.StringVar(&inputFileName, "inputFile", "", "input file name")
-	flag.StringVar(&inputFileName, "if", "", "input file name (shorthand)")
-	flag.StringVar(&outputFileName, "outputFile", "", "output file name")
-	flag.StringVar(&outputFileName, "of", "", "output file name (shorthand)")
-	flag.StringVar(&logFileName, "logFile", "", "log file name [implies -log]")
-	flag.StringVar(&logFileName, "lf", "", "log file name (shorthand) [implies -l]")
-	flag.StringVar(&proFormaFileName, "proformaFile", "", "proForma file name")
-	flag.StringVar(&proFormaFileName, "pf", "", "proForma file name (shorthand)")
-	flag.BoolVar(&encode, "encode", false, "encrypt data")
-	flag.BoolVar(&encode, "e", false, "encrypt data (shorthand)")
-	flag.BoolVar(&decode, "decode", false, "decrypt data")
-	flag.BoolVar(&decode, "d", false, "decrypt data (shorthand)")
-	flag.BoolVar(&logIt, "log", false, "turn logging on")
-	flag.BoolVar(&logIt, "l", false, "turn logging on (shorthand)")
-	flag.BoolVar(&useASCII85, "a", false, "use ascii85 encodeing (shorthand)")
-	flag.BoolVar(&useASCII85, "ascii85", false, "use ascii85 encoding")
+	flag.StringVar(&cnt, "c", "0", "initial count")
+	flag.StringVar(&inputFileName, "if", "", "input file name")
+	flag.StringVar(&outputFileName, "of", "", "output file name")
+	flag.StringVar(&proFormaFileName, "pf", "", "proForma file name")
+	flag.BoolVar(&encode, "e", false, "encrypt data")
+	flag.BoolVar(&decode, "d", false, "decrypt data")
+	flag.BoolVar(&useASCII85, "a", false, "use ascii85 encoding")
+	flag.BoolVar(&noCompression, "nc", false, "do not compress input file")
 	flag.Parse()
 
 	if (encode && decode) || !(encode || decode) {
-		fmt.Fprintln(os.Stderr, "You must select one of -encode or -decode")
+		fmt.Fprintln(os.Stderr, "You must select one of -e (encode) or -e (decode)")
 		fmt.Fprintln(os.Stderr, usage)
 		flag.PrintDefaults()
 		os.Exit(1)
@@ -106,15 +93,6 @@ func init() {
 	if len(secret) == 0 {
 		fmt.Fprintln(os.Stderr, "You must supply a password.")
 		os.Exit(1)
-	}
-
-	if len(logFileName) != 0 {
-		setLogFileName(logFileName)
-		turnOnLogging() // Set the log file to the named log file.
-	}
-
-	if !logIt {
-		turnOffLogging()
 	}
 
 	iCnt, good := new(big.Int).SetString(cnt, 10)
@@ -146,6 +124,13 @@ func init() {
 	}
 	// Now we can set the index of the ciper machine.
 	tntMachine.SetIndex(iCnt)
+}
+
+// checkFatal checks for error that are not io.EOF and io.ErrUnexpectedEOF and logs them.
+func checkFatal(e error) {
+	if e != nil && e != io.EOF && e != io.ErrUnexpectedEOF {
+		log.Fatal(e)
+	}
 }
 
 /*
@@ -190,9 +175,12 @@ func encrypt() {
 	encIn, encOut := io.Pipe()
 	leftMost, rightMost := tntMachine.Left(), tntMachine.Right()
 	fin, fout := getInputAndOutputFiles()
-	var blck filters.Block
+	var blck pem.Block
 	if useASCII85 {
-		fout.WriteString(fmt.Sprintf("%s\n", tntMachine.Index()))
+		if len(inputFileName) > 0 && inputFileName != "-" {
+			fout.WriteString(inputFileName)
+		}
+		fout.WriteString(fmt.Sprintf(":%s\n", tntMachine.Index()))
 	} else {
 		blck.Headers = make(map[string]string)
 		blck.Type = "TNT2 Encoded Message"
@@ -209,13 +197,18 @@ func encrypt() {
 	go func() {
 		defer wg.Done()
 		defer encOut.Close()
-		flateIn := filters.ToFlate(fin)
+		var flateIn io.Reader
+		if noCompression {
+			flateIn = fin
+		} else {
+			flateIn = flate.ToFlate(fin)
+		}
 		var err error
 		var cnt int
 		plainText := make([]byte, 0)
 
 		for err != io.EOF {
-			var blk tntEngine.CypherBlock
+			var blk tntengine.CypherBlock
 			b := make([]byte, 1024, 1024)
 			cnt, err = flateIn.Read(b)
 			checkFatal(err)
@@ -223,15 +216,15 @@ func encrypt() {
 			if err != io.EOF {
 				plainText = append(plainText, b[:cnt]...)
 
-				for len(plainText) >= tntEngine.CypherBlockBytes {
+				for len(plainText) >= tntengine.CypherBlockBytes {
 					_ = copy(blk.CypherBlock[:], plainText)
-					blk.Length = tntEngine.CypherBlockBytes
+					blk.Length = tntengine.CypherBlockBytes
 					leftMost <- blk
 					blk = <-rightMost
 					cnt, err = encOut.Write(blk.Marshall())
 					checkFatal(err)
 					pt := make([]byte, 0)
-					pt = append(pt, plainText[tntEngine.CypherBlockBytes:]...)
+					pt = append(pt, plainText[tntengine.CypherBlockBytes:]...)
 					plainText = pt
 				}
 			} else if len(plainText) > 0 { // encrypt any remaining input.
@@ -248,7 +241,7 @@ func encrypt() {
 
 		// shutdown the encryption machine by processing a CypherBlock with zero
 		// value length field.
-		var blk tntEngine.CypherBlock
+		var blk tntengine.CypherBlock
 		leftMost <- blk
 		_ = <-rightMost
 	}()
@@ -257,9 +250,9 @@ func encrypt() {
 	defer fout.Close()
 	var err error
 	if useASCII85 {
-		_, err = io.Copy(fout, filters.SplitToLines(filters.ToASCII85(encIn)))
+		_, err = io.Copy(fout, lines.SplitToLines(ascii85.ToASCII85(encIn)))
 	} else {
-		_, err = io.Copy(fout, filters.ToPem(encIn, blck))
+		_, err = io.Copy(fout, pem.ToPem(encIn, blck))
 	}
 	checkFatal(err)
 	wg.Wait()
@@ -273,13 +266,20 @@ func decrypt() {
 	if useASCII85 {
 		bRdr = bufio.NewReader(fin)
 		line, err := bRdr.ReadString('\n')
-
 		if err == nil {
-			iCnt, _ = new(big.Int).SetString(line[:len(line)-1], 10)
+			fields := strings.Split(line[:len(line)-1], ":")
+			if len(outputFileName) == 0 {
+				if len(fields) > 1 {
+					var err error
+					fout, err = os.Create(fields[0])
+					checkFatal(err)
+				}
+			}
+			iCnt, _ = new(big.Int).SetString(fields[len(fields)-1], 10)
 		}
 	} else {
-		var blck filters.Block
-		pRdr, blck = filters.FromPem(fin)
+		var blck pem.Block
+		pRdr, blck = pem.FromPem(fin)
 		iCnt, _ = new(big.Int).SetString(blck.Headers["Counter"], 10)
 		if len(outputFileName) == 0 {
 			fname, ok := blck.Headers["FileName"]
@@ -304,7 +304,7 @@ func decrypt() {
 		encText := make([]byte, 0)
 		var aRdr *io.PipeReader
 		if useASCII85 {
-			aRdr = filters.FromASCII85(filters.CombineLines(bRdr))
+			aRdr = ascii85.FromASCII85(lines.CombineLines(bRdr))
 		} else {
 			aRdr = pRdr
 		}
@@ -317,15 +317,15 @@ func decrypt() {
 			if err != io.EOF {
 				encText = append(encText, b[:cnt]...)
 
-				for len(encText) >= tntEngine.CypherBlockBytes+1 {
-					var blk tntEngine.CypherBlock
-					blk = *blk.Unmarshall(encText[:tntEngine.CypherBlockBytes+1])
+				for len(encText) >= tntengine.CypherBlockBytes+1 {
+					var blk tntengine.CypherBlock
+					blk = *blk.Unmarshall(encText[:tntengine.CypherBlockBytes+1])
 					leftMost <- blk
 					blk = <-rightMost
 					_, e := decWrtr.Write(blk.CypherBlock[:blk.Length])
 					checkFatal(e)
 					pt := make([]byte, 0)
-					pt = append(pt, encText[tntEngine.CypherBlockBytes+1:]...)
+					pt = append(pt, encText[tntengine.CypherBlockBytes+1:]...)
 					encText = pt
 				}
 			}
@@ -333,12 +333,19 @@ func decrypt() {
 
 		// shutdown the decryption machine by processing a CypherBlock with zero
 		// value length field.
-		var blk tntEngine.CypherBlock
+		var blk tntengine.CypherBlock
 		leftMost <- blk
 		_ = <-rightMost
 	}()
 
-	_, err := io.Copy(fout, filters.FromFlate(decRdr))
+	var flateRdr *io.PipeReader
+	if noCompression {
+		flateRdr = decRdr
+	} else {
+		flateRdr = flate.FromFlate(decRdr)
+	}
+
+	_, err := io.Copy(fout, flateRdr)
 	checkFatal(err)
 	wg.Wait() // Wait for the decryption machine to finish it's clean up.
 }
