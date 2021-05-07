@@ -1,7 +1,9 @@
-// tnt2 project main.go
-// tnt2 is an implementation of the "Infinite Key Ecryption" system from the
-// Dr. Dobbs Journal artical.
+// This is free and unencumbered software released into the public domain.
+// See the UNLICENSE file for details.
 
+// Package main -  tnt2 is an encryption system based on the article in
+// Dr. Dobbs Journal Volume 9, Number 94, 1984 titled
+// "An Infinite Key Encryption System" by John A. Thomas and Joan Thersites.
 package main
 
 import (
