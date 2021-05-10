@@ -15,8 +15,8 @@ github.com/bgallie/filters/pem v0.0.0-20210506044343-a9eed513daff h1:NKlJbbbQxJ7
 github.com/bgallie/filters/pem v0.0.0-20210506044343-a9eed513daff/go.mod h1:BGvr8AileRZqQwAg3lBeqTqQ9X24g8t0R3XDy6ZYwik=
 github.com/bgallie/jc1 v1.1.1 h1:lRzGB1TddAIcBMZzflASi+Dv10jfacRnIdI79XcLUsI=
 github.com/bgallie/jc1 v1.1.1/go.mod h1:DYi1LTKWFhce4XAKhvyDp6y4cFvRmoXWq0uaCSi59Rc=
-github.com/bgallie/tntengine v1.1.0 h1:+mLA/rwRRiTAfFWx6zXWCNKwvPWfXPNYrX0K0B4Lr/g=
-github.com/bgallie/tntengine v1.1.0/go.mod h1:MXp7Ol9UXi2kOKNoc5ZapgB8fgBhlveRLm9+KS1fpz8=
+github.com/bgallie/tntengine v1.1.1 h1:QVpH6/5fY8Q3zvtR5/kBu3LjmIrIPvs4a4vMXF7kBNg=
+github.com/bgallie/tntengine v1.1.1/go.mod h1:MXp7Ol9UXi2kOKNoc5ZapgB8fgBhlveRLm9+KS1fpz8=
 golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b h1:7mWr3k41Qtv8XlltBkDkl8LoP3mpSgBW8BUoxtEdbXg=
 golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b/go.mod h1:T9bdIzuCu7OtxOm1hfPfRQxPLYneinmdGuTeoZ9dtd4=
 golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
