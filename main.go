@@ -33,11 +33,12 @@ const (
 )
 
 var (
-	encode           bool // Flag: True to encode, False to decode
-	decode           bool // Flag: True to decode, False to encode
-	useASCII85       bool // Flag: True to using ascii85 encoding
+	encode           bool // Flag: True to encode, False to decode.
+	decode           bool // Flag: True to decode, False to encode.
+	useASCII85       bool // Flag: True to use ascii85 encoding.
 	useBinary        bool // Flag: True to output pure binary (no encoding).
-	noCompression    bool // Flag: True to not compress the file.
+	usePem           bool // Flag: True to use PEM encoding.
+	compression      bool // Flag: True to compress the file.
 	tntMachine       tntengine.TntEngine
 	iCnt             *big.Int
 	cMap             map[string]*big.Int
@@ -60,15 +61,15 @@ var (
 func init() {
 	// Parse the command line arguments.
 	var cnt = "-1"
-	flag.StringVar(&cnt, "c", "0", "initial count")
+	flag.StringVar(&cnt, "n", "0", "initial count")
 	flag.StringVar(&inputFileName, "if", "", "input file name")
 	flag.StringVar(&outputFileName, "of", "", "output file name")
 	flag.StringVar(&proFormaFileName, "pf", "", "proForma file name")
 	flag.BoolVar(&encode, "e", false, "encrypt data")
 	flag.BoolVar(&decode, "d", false, "decrypt data")
 	flag.BoolVar(&useASCII85, "a", false, "use ascii85 encoding")
-	flag.BoolVar(&useBinary, "b", false, "use binary output (no encoding)")
-	flag.BoolVar(&noCompression, "nc", false, "do not compress input file")
+	flag.BoolVar(&usePem, "p", false, "use PEM encoding.")
+	flag.BoolVar(&compression, "c", false, "compress input file")
 	flag.Parse()
 
 	if (encode && decode) || !(encode || decode) {
@@ -77,6 +78,10 @@ func init() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
+
+	// useBinary is the default is useASCII85 or usePem are not selected.
+	useBinary = !(useASCII85 || usePem)
+
 	// Obtain the passphrase used to encrypt the file from either:
 	// 1. User input from the terminal
 	// 2. The 'tnt2Secret' environment variable
@@ -179,9 +184,9 @@ func getInputAndOutputFiles() (*os.File, *os.File) {
 
 // toBinaryHelper provides the means to output pure binary encrypted
 // data to the output file along with the number of byte encrypted.
-// This is necessary because last block of encrypted data must be output
-// in order to properly decrypt it, even if the plain text does not fill
-// the final block.
+// This is necessary because then entire last block of encrypted data must
+// be output in order to properly decrypt it, even if the plain text does
+// not fill the final block.
 func toBinaryHelper(rdr io.Reader) *io.PipeReader {
 	rRdr, rWrtr := io.Pipe()
 	var cnt int
@@ -227,7 +232,6 @@ func toBinaryHelper(rdr io.Reader) *io.PipeReader {
 			blk := *new(tntengine.CypherBlock)
 			blk.Length = int8(len(plainText))
 			cnt = copy(blk.CypherBlock[:], plainText[:blk.Length])
-			// log.Printf("decrypting %d bytes\n", cnt)
 			leftMost <- blk
 			blk = <-rightMost
 			_, err1 := tmpFile.Write(blk.CypherBlock[:])
@@ -235,10 +239,9 @@ func toBinaryHelper(rdr io.Reader) *io.PipeReader {
 			bytesWritten += int64(blk.Length)
 		}
 
-		headerLine += fmt.Sprintf("%d\n", bytesWritten)
 		_, err = tmpFile.Seek(0, 0)
 		checkFatal(err)
-		rWrtr.Write([]byte(headerLine))
+		rWrtr.Write([]byte(fmt.Sprintf("%d\n", bytesWritten)))
 		_, err = io.Copy(rWrtr, tmpFile)
 		checkFatal(err)
 		// shutdown the decryption machine by processing a CypherBlock with zero
@@ -254,11 +257,19 @@ func toBinaryHelper(rdr io.Reader) *io.PipeReader {
 /*
  */
 func encrypt() {
-	encIn, encOut := io.Pipe()
-	leftMost, rightMost := tntMachine.Left(), tntMachine.Right()
+	var encIn *io.PipeReader
+	// leftMost, rightMost := tntMachine.Left(), tntMachine.Right()
 	fin, fout := getInputAndOutputFiles()
 	var blck pem.Block
-	if useASCII85 || useBinary {
+	if usePem { //useASCII85 || useBinary {
+		blck.Headers = make(map[string]string)
+		blck.Type = "TNT2 Encoded Message"
+		blck.Headers["Counter"] = fmt.Sprintf("%s", tntMachine.Index())
+		if len(inputFileName) > 0 && inputFileName != "-" {
+			blck.Headers["FileName"] = inputFileName
+		}
+		blck.Headers["Compression"] = fmt.Sprintf("%v", compression)
+	} else {
 		headerLine = "+TNT2|"
 		if len(inputFileName) > 0 && inputFileName != "-" {
 			headerLine += inputFileName
@@ -268,96 +279,32 @@ func encrypt() {
 		} else {
 			headerLine += "|b"
 		}
-		headerLine += fmt.Sprintf("|%s|%s|", fmt.Sprintf("%v", noCompression), tntMachine.Index())
-		if useASCII85 {
-			fout.WriteString(headerLine + "\n")
-		}
-	} else {
-		blck.Headers = make(map[string]string)
-		blck.Type = "TNT2 Encoded Message"
-		blck.Headers["Counter"] = fmt.Sprintf("%s", tntMachine.Index())
-		if len(inputFileName) > 0 && inputFileName != "-" {
-			blck.Headers["FileName"] = inputFileName
-		}
-		blck.Headers["noCompression"] = fmt.Sprintf("%v", noCompression)
+		headerLine += fmt.Sprintf("|%s|%s|", fmt.Sprintf("%v", compression), tntMachine.Index())
+		fout.WriteString(headerLine)
 	}
 
-	if useBinary {
-		if noCompression {
-			encIn = toBinaryHelper(fin)
-		} else {
-			encIn = toBinaryHelper(flate.ToFlate(fin))
-		}
+	if compression {
+		encIn = toBinaryHelper(flate.ToFlate(fin))
 	} else {
-		// Go routine to read the output from the encIn, encrypt it and
-		// sends it to the appropiate filter (ToPem or ToASCII85).
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer encOut.Close()
-
-			var err error
-			var cnt int
-			var flateIn io.Reader
-
-			if noCompression {
-				flateIn = fin
-			} else {
-				flateIn = flate.ToFlate(fin)
-			}
-
-			plainText := make([]byte, 0)
-
-			for err != io.EOF {
-				b := make([]byte, 1024, 1024)
-				cnt, err = flateIn.Read(b)
-				checkFatal(err)
-				bytesRemaining += int64(cnt)
-				if err != io.EOF {
-					plainText = append(plainText, b[:cnt]...)
-
-					for len(plainText) >= tntengine.CypherBlockBytes {
-						blk := *new(tntengine.CypherBlock)
-						blk.Length = tntengine.CypherBlockBytes
-						_ = copy(blk.CypherBlock[:], plainText)
-						leftMost <- blk
-						blk = <-rightMost
-						cnt, err = encOut.Write(blk.Marshall())
-						checkFatal(err)
-						bytesWritten += int64(cnt)
-						pt := make([]byte, 0)
-						pt = append(pt, plainText[tntengine.CypherBlockBytes:]...)
-						plainText = pt
-					}
-				} else if len(plainText) > 0 { // encrypt any remaining input.
-					var e error
-					blk := *new(tntengine.CypherBlock)
-					blk.Length = int8(len(plainText))
-					_ = copy(blk.CypherBlock[:], plainText[:blk.Length])
-					leftMost <- blk
-					blk = <-rightMost
-					cnt, e = encOut.Write((blk.Marshall()))
-					checkFatal(e)
-					bytesWritten += int64(cnt)
-				}
-			}
-
-			// shutdown the encryption machine by processing a CypherBlock with zero
-			// value length field.
-			var blk tntengine.CypherBlock
-			leftMost <- blk
-			_ = <-rightMost
-		}()
+		encIn = toBinaryHelper(fin)
 	}
-	// Read the marshalled CyperBlock and send it to STDOUT.
+
 	defer fout.Close()
 	var err error
+	bRdr := bufio.NewReader(encIn)
 	if useBinary {
-		_, err = io.Copy(fout, encIn)
+		_, err = io.Copy(fout, bRdr)
 	} else if useASCII85 {
+		line, err := bRdr.ReadString('\n')
+		checkFatal(err)
+		_, err = fout.Write([]byte(line))
+		checkFatal(err)
 		_, err = io.Copy(fout, lines.SplitToLines(ascii85.ToASCII85(encIn)))
 	} else {
-		_, err = io.Copy(fout, pem.ToPem(encIn, blck))
+		line, err := bRdr.ReadString('\n')
+		checkFatal(err)
+		blck.Headers["FileSize"] = line[:len(line)-1]
+		_, err = io.Copy(fout, pem.ToPem(bRdr, blck))
 	}
 	checkFatal(err)
 	wg.Wait()
@@ -368,59 +315,13 @@ func encrypt() {
 // be read using the returned PipeReader.
 func fromBinaryHelper(rdr io.Reader) *io.PipeReader {
 	rRdr, rWrtr := io.Pipe()
-	var cnt int
-	var err error
-	encText := make([]byte, 0)
-	leftMost, rightMost := tntMachine.Left(), tntMachine.Right()
 	wg.Add(1)
-
 	go func() {
-		defer wg.Done()
 		defer rWrtr.Close()
-		err = nil
-
-		for err != io.EOF {
-			b := make([]byte, 2048, 2048)
-			cnt, err = rdr.Read(b)
-			// log.Printf("Read %d bytes\n", cnt)
-			checkFatal(err)
-
-			if err != io.EOF {
-				encText = append(encText, b[:cnt]...)
-				for len(encText) > tntengine.CypherBlockBytes {
-					blk := *new(tntengine.CypherBlock)
-					blk.Length = tntengine.CypherBlockBytes
-					_ = copy(blk.CypherBlock[:], encText[:blk.Length])
-					leftMost <- blk
-					blk = <-rightMost
-					_, err1 := rWrtr.Write(blk.CypherBlock[:])
-					checkFatal(err1)
-					bytesRemaining -= int64(blk.Length)
-					pt := make([]byte, 0)
-					pt = append(pt, encText[blk.Length:]...)
-					encText = pt
-				}
-			}
-		}
-
-		if len(encText) > 0 {
-			blk := *new(tntengine.CypherBlock)
-			blk.Length = int8(len(encText))
-			cnt = copy(blk.CypherBlock[:], encText[:blk.Length])
-			// log.Printf("decrypting %d bytes\n", cnt)
-			leftMost <- blk
-			blk = <-rightMost
-			_, err1 := rWrtr.Write(blk.CypherBlock[:bytesRemaining])
-			checkFatal(err1)
-		}
-
-		// shutdown the decryption machine by processing a CypherBlock with zero
-		// value length field.
-		var blk tntengine.CypherBlock
-		leftMost <- blk
-		_ = <-rightMost
+		defer wg.Done()
+		_, err := io.Copy(rWrtr, rdr)
+		checkFatal(err)
 	}()
-
 	return rRdr
 }
 
@@ -430,10 +331,12 @@ func decrypt() {
 	var ofName string
 	var bRdr *bufio.Reader
 	var pRdr *io.PipeReader
+	var err error
 	bRdr = bufio.NewReader(fin)
 	b, err := bRdr.Peek(5)
 	checkFatal(err)
 	if string(b) == "-----" {
+		usePem = true
 		var blck pem.Block
 		pRdr, blck = pem.FromPem(bRdr)
 		iCnt, _ = new(big.Int).SetString(blck.Headers["Counter"], 10)
@@ -443,10 +346,11 @@ func decrypt() {
 				ofName = fname
 			}
 		}
-		noCmpr, ok := blck.Headers["noCompression"]
+		cmpr, ok := blck.Headers["Compression"]
 		if ok {
-			noCompression = noCmpr == "true"
+			compression = cmpr == "true"
 		}
+		_, err = fmt.Sscanf(blck.Headers["FileSize"], "%d", &bytesRemaining)
 	} else {
 		line, err := bRdr.ReadString('\n')
 		if err == nil {
@@ -462,7 +366,7 @@ func decrypt() {
 				ofName = fields[1]
 				useASCII85 = fields[2] == "a"
 				useBinary = fields[2] == "b"
-				noCompression = fields[3] == "true"
+				compression = fields[3] == "true"
 				iCnt, _ = new(big.Int).SetString(fields[4], 10)
 				_, err = fmt.Sscanf(fields[5], "%d", &bytesRemaining)
 				checkFatal(err)
@@ -481,65 +385,55 @@ func decrypt() {
 	tntMachine.SetIndex(iCnt)
 	leftMost, rightMost := tntMachine.Left(), tntMachine.Right()
 	decRdr, decWrtr := io.Pipe()
+	err = nil
+	wg.Add(1)
 
-	if !useBinary {
-		wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer decWrtr.Close()
+		var cnt int
+		encText := make([]byte, 0)
+		var aRdr *io.PipeReader
 
-		go func() {
-			defer wg.Done()
-			defer decWrtr.Close()
-			var err error = nil
-			var cnt int
-			encText := make([]byte, 0)
-			var aRdr *io.PipeReader
-			if useASCII85 {
-				aRdr = ascii85.FromASCII85(lines.CombineLines(bRdr))
-			} else {
-				aRdr = pRdr
-			}
+		if usePem {
+			aRdr = pRdr
+		} else if useASCII85 {
+			aRdr = ascii85.FromASCII85(lines.CombineLines(bRdr))
+		} else {
+			aRdr = fromBinaryHelper(bRdr)
+		}
 
-			for err != io.EOF {
-				b := make([]byte, 1024, 1024)
-				cnt, err = aRdr.Read(b)
-				checkFatal(err)
-				log.Printf("Read %d bytes\n", cnt)
-				if err != io.EOF {
-					encText = append(encText, b[:cnt]...)
-					for len(encText) >= tntengine.CypherBlockBytes+1 {
-						var blk tntengine.CypherBlock
-						blk = *blk.Unmarshall(encText[:tntengine.CypherBlockBytes+1])
-						leftMost <- blk
-						blk = <-rightMost
-						_, e := decWrtr.Write(blk.CypherBlock[:blk.Length])
-						checkFatal(e)
-						pt := make([]byte, 0)
-						pt = append(pt, encText[tntengine.CypherBlockBytes+1:]...)
-						encText = pt
+		for err != io.EOF {
+			b := make([]byte, 1024, 1024)
+			cnt, err = aRdr.Read(b)
+			checkFatal(err)
+			if err != io.EOF {
+				encText = append(encText, b[:cnt]...)
+				for len(encText) >= tntengine.CypherBlockBytes {
+					blk := *new(tntengine.CypherBlock)
+					blk.Length = tntengine.CypherBlockBytes
+					_ = copy(blk.CypherBlock[:], encText[:blk.Length])
+					leftMost <- blk
+					blk = <-rightMost
+					var err1 error
+					if bytesRemaining < int64(blk.Length) {
+						_, err1 = decWrtr.Write(blk.CypherBlock[:bytesRemaining])
+					} else {
+						_, err1 = decWrtr.Write(blk.CypherBlock[:])
 					}
+					checkFatal(err1)
+					bytesRemaining -= int64(blk.Length)
+					pt := make([]byte, 0)
+					pt = append(pt, encText[blk.Length:]...)
+					encText = pt
 				}
 			}
-
-			// shutdown the decryption machine by processing a CypherBlock with zero
-			// value length field.
-			var blk tntengine.CypherBlock
-			leftMost <- blk
-			_ = <-rightMost
-		}()
-	}
-
-	var flateRdr *io.PipeReader
-	if noCompression {
-		if useBinary {
-			flateRdr = fromBinaryHelper(bRdr)
-		} else {
-			flateRdr = decRdr
 		}
-	} else {
-		if useBinary {
-			flateRdr = flate.FromFlate(fromBinaryHelper(bRdr))
-		} else {
-			flateRdr = flate.FromFlate(decRdr)
-		}
+	}()
+
+	var flateRdr *io.PipeReader = decRdr
+	if compression {
+		flateRdr = flate.FromFlate(decRdr)
 	}
 
 	_, err = io.Copy(fout, flateRdr)
