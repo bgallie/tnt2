@@ -2,8 +2,6 @@ module github.com/bgallie/tnt2
 
 go 1.16
 
-replace github.com/bgallie/filters/pem => /home/bga/workplace/src/github.com/bgallie/filters/pem
-
 require (
 	github.com/bgallie/filters/ascii85 v0.0.0-20210616200048-3716ccc6da1a
 	github.com/bgallie/filters/flate v0.0.0-20210616200048-3716ccc6da1a

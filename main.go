@@ -119,7 +119,6 @@ func init() {
 	// as "1/2", "2/3", or "3/4".  If it is a fraction, then the starting block
 	// count is calculated by multiplying the maximal states of the tntEngine
 	// by the fraction.
-	var iCnt *big.Int
 	var good bool
 	flds := strings.Split(cnt, "/")
 	if len(flds) == 1 {
@@ -128,7 +127,7 @@ func init() {
 			log.Fatalf("Failed converting the count to a big.Int: [%s]\n", cnt)
 		}
 	} else if len(flds) == 2 {
-		m := tntMachine.MaximalStates()
+		m := new(big.Int).Set(tntMachine.MaximalStates())
 		a, good := new(big.Int).SetString(flds[0], 10)
 		if !good {
 			log.Fatalf("Failed converting the numerator to a big.Int: [%s]\n", flds[0])
@@ -141,7 +140,6 @@ func init() {
 	} else {
 		log.Fatalf("Incorrect initial count: [%s]\n", cnt)
 	}
-	log.Printf("Calculated iCnt: [%d]\n", iCnt)
 
 	// Now the the engine type is set, build the cipher machine.
 	tntMachine.BuildCipherMachine()
@@ -231,7 +229,6 @@ func toBinaryHelper(rdr io.Reader) *io.PipeReader {
 		for err != io.EOF {
 			b := make([]byte, 2048, 2048)
 			cnt, err = rdr.Read(b)
-			// log.Printf("Read %d bytes\n", cnt)
 			checkFatal(err)
 
 			if err != io.EOF {
