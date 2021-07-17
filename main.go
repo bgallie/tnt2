@@ -83,9 +83,9 @@ func init() {
 	useBinary = !(useASCII85 || usePem)
 
 	// Obtain the passphrase used to encrypt the file from either:
-	// 1. User input from the terminal
-	// 2. The 'tnt2Secret' environment variable
-	// 3. Arguments from the entered command line
+	// 1. User input from the terminal (most secure)
+	// 2. The 'tnt2Secret' environment variable (less secure)
+	// 3. Arguments from the entered command line (least secure - not recommended)
 	var secret string
 	var exists bool
 	if flag.NArg() == 0 {
@@ -108,17 +108,41 @@ func init() {
 		os.Exit(1)
 	}
 
-	iCnt, good := new(big.Int).SetString(cnt, 10)
-	if !good {
-		log.Fatalf("Failed converting counter to a big.Int: [%s]\n", cnt)
-	}
-
 	tntMachine.Init([]byte(secret), proFormaFileName)
 	if encode {
 		tntMachine.SetEngineType("E")
 	} else {
 		tntMachine.SetEngineType("D")
 	}
+
+	// Get the starting block count.  cnt can be a number or a fraction such
+	// as "1/2", "2/3", or "3/4".  If it is a fraction, then the starting block
+	// count is calculated by multiplying the maximal states of the tntEngine
+	// by the fraction.
+	var iCnt *big.Int
+	var good bool
+	flds := strings.Split(cnt, "/")
+	if len(flds) == 1 {
+		iCnt, good = new(big.Int).SetString(cnt, 10)
+		if !good {
+			log.Fatalf("Failed converting the count to a big.Int: [%s]\n", cnt)
+		}
+	} else if len(flds) == 2 {
+		m := tntMachine.MaximalStates()
+		a, good := new(big.Int).SetString(flds[0], 10)
+		if !good {
+			log.Fatalf("Failed converting the numerator to a big.Int: [%s]\n", flds[0])
+		}
+		b, good := new(big.Int).SetString(flds[1], 10)
+		if !good {
+			log.Fatalf("Failed converting the denominator to a big.Int: [%s]\n", flds[1])
+		}
+		iCnt = m.Div(m.Mul(m, a), b)
+	} else {
+		log.Fatalf("Incorrect initial count: [%s]\n", cnt)
+	}
+	log.Printf("Calculated iCnt: [%d]\n", iCnt)
+
 	// Now the the engine type is set, build the cipher machine.
 	tntMachine.BuildCipherMachine()
 	mKey = tntMachine.CounterKey()
