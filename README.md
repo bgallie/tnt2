@@ -35,6 +35,15 @@ before the key will repeat itself.
 **-pf string** the file name containing the proforma machine to use
 instead of the builtin proforma machine
 
+## Secret Key
+
+The secret key that is used to encrypt/decrypt the data can be supplied 
+in one (1) of three (3) ways, in order of security:
+
+1. The program will prompt for the secret key (most secure)
+2. The secret key is passed in via the tnt2Secret environment variable.
+3. The secret key is passwd as arguments after all the valid options (least secure)
+
 # COPYRIGHT
 
 This is free and unencumbered software released into the public domain.
