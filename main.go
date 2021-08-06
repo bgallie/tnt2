@@ -197,8 +197,12 @@ func getInputAndOutputFiles() (*os.File, *os.File) {
 			fout, err = os.Create(outputFileName)
 			checkFatal(err)
 		}
-	} else {
+	} else if inputFileName == "-" {
 		fout = os.Stdout
+	} else {
+		outputFileName = inputFileName + ".tnt2"
+		fout, err = os.Create(outputFileName)
+		checkFatal(err)
 	}
 
 	return fin, fout
