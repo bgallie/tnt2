@@ -63,7 +63,7 @@ func init() {
 	var cnt = "-1"
 	flag.StringVar(&cnt, "n", "0", "initial count")
 	flag.StringVar(&inputFileName, "if", "", "input file name")
-	flag.StringVar(&outputFileName, "of", "", "output file name")
+	flag.StringVar(&outputFileName, "of", "", "output file name (default input file name with '.tnt2' extension)")
 	flag.StringVar(&proFormaFileName, "pf", "", "proForma file name")
 	flag.BoolVar(&encode, "e", false, "encrypt data")
 	flag.BoolVar(&decode, "d", false, "decrypt data")
