@@ -199,12 +199,20 @@ func getInputAndOutputFiles() (*os.File, *os.File) {
 		}
 	} else if inputFileName == "-" {
 		fout = os.Stdout
-	} else {
+	} else if encode {
 		outputFileName = inputFileName + ".tnt2"
 		fout, err = os.Create(outputFileName)
 		checkFatal(err)
+	} else {
+		if strings.HasSuffix(inputFileName, ".tnt2") {
+			outputFileName = inputFileName[:len(inputFileName)-5]
+			fout, err = os.Create(outputFileName)
+			checkFatal(err)
+		} else {
+			fout = os.Stdout
+		}
 	}
-
+	log.Printf("Input: [%s] Output:[%s]\n", inputFileName, outputFileName)
 	return fin, fout
 }
 
