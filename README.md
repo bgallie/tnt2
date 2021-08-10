@@ -4,7 +4,7 @@ tnt2 - an infinite key encryption system
 
 # SYNOPSIS
 
-**tnt2** \[*OPTION*\]  
+**tnt2** \[*OPTIONS*\]  
 
 # DESCRIPTION
 
