@@ -10,7 +10,7 @@ tnt2 - an infinite key encryption system
 
 **tnt2** is an encryption/description system that uses an infinite (with
 respect to the plaintext) key to encode the data. The psuedo-random
-generator used by **tnt2** can encode approximately 1.64×10³⁵ bytes
+generator used by **tnt2** can encode approximately 8.4×10³⁸ bytes
 before the key will repeat itself.
 
 # OPTIONS
