@@ -24,7 +24,7 @@ import (
 	"github.com/bgallie/filters/lines"
 	"github.com/bgallie/filters/pem"
 	"github.com/bgallie/tntengine"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 const (
@@ -47,11 +47,6 @@ var (
 	inputFileName    string
 	outputFileName   string
 	proFormaFileName string
-	proFormaFile     os.File
-	perm             func(int) []byte
-	intn             func(int) int
-	inputFile        = os.Stdin
-	outputFile       = os.Stdout
 	bytesRemaining   int64
 	bytesWritten     int64
 	headerLine       string
@@ -91,9 +86,9 @@ func init() {
 	if flag.NArg() == 0 {
 		secret, exists = os.LookupEnv("tnt2Secret")
 		if !exists {
-			if terminal.IsTerminal(int(os.Stdin.Fd())) {
+			if term.IsTerminal(int(os.Stdin.Fd())) {
 				fmt.Fprintf(os.Stderr, "Enter the passphrase: ")
-				byteSecret, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+				byteSecret, err := term.ReadPassword(int(os.Stdin.Fd()))
 				checkFatal(err)
 				fmt.Fprintln(os.Stderr, "")
 				secret = string(byteSecret)
@@ -239,7 +234,7 @@ func toBinaryHelper(rdr io.Reader) *io.PipeReader {
 		err = nil
 
 		for err != io.EOF {
-			b := make([]byte, 2048, 2048)
+			b := make([]byte, 2048)
 			cnt, err = rdr.Read(b)
 			checkFatal(err)
 
@@ -281,7 +276,7 @@ func toBinaryHelper(rdr io.Reader) *io.PipeReader {
 		// value length field.
 		var blk tntengine.CypherBlock
 		leftMost <- blk
-		_ = <-rightMost
+		<-rightMost
 	}()
 
 	return rRdr
@@ -333,11 +328,13 @@ func encrypt() {
 		_, err = fout.Write([]byte(line))
 		checkFatal(err)
 		_, err = io.Copy(fout, lines.SplitToLines(ascii85.ToASCII85(encIn)))
+		checkFatal(err)
 	} else {
 		line, err := bRdr.ReadString('\n')
 		checkFatal(err)
 		blck.Headers["FileSize"] = line[:len(line)-1]
 		_, err = io.Copy(fout, pem.ToPem(bRdr, blck))
+		checkFatal(err)
 	}
 	checkFatal(err)
 	wg.Wait()
@@ -437,7 +434,7 @@ func decrypt() {
 		}
 
 		for err != io.EOF {
-			b := make([]byte, 1024, 1024)
+			b := make([]byte, 1024)
 			cnt, err = aRdr.Read(b)
 			checkFatal(err)
 			if err != io.EOF {
