@@ -2,6 +2,8 @@ module github.com/bgallie/tnt2
 
 go 1.17
 
+replace github.com/bgallie/tntengine => /home/bga/workplace/src/github.com/bgallie/tntengine
+
 require (
 	github.com/bgallie/filters/ascii85 v0.0.0-20211001220259-cf192ac7c76c
 	github.com/bgallie/filters/flate v0.0.0-20211001220259-cf192ac7c76c
@@ -16,7 +18,7 @@ require (
 	github.com/bgallie/filters/base64 v0.0.0-20210625142910-fd31ab2a9ba8 // indirect
 	github.com/bgallie/jc1 v1.1.1 // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
-	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
 	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7 // indirect
 )
