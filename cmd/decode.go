@@ -1,5 +1,5 @@
 /*
-Copyright © 2021 NAME HERE <EMAIL ADDRESS>
+Copyright © 2021 Billy G. Allie <bill.allie@defiant.mug.org>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,8 +38,8 @@ var (
 // decodeCmd represents the decode command
 var decodeCmd = &cobra.Command{
 	Use:   "decode",
-	Short: "Decode a TNT2 encode file.",
-	Long:  `Decode a file encode by the TNT2 Infinite (with respect to the plaintext) Encryption System.`,
+	Short: "Decode a TNT2 encoded file.",
+	Long:  `Decode a file encoded by the TNT2 Infinite (with respect to the plaintext) Encryption System.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		decode(args)
 	},
