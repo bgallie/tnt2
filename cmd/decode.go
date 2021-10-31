@@ -39,7 +39,7 @@ var (
 var decodeCmd = &cobra.Command{
 	Use:   "decode",
 	Short: "Decode a TNT2 encoded file.",
-	Long:  `Decode a file encoded by the TNT2 Infinite (with respect to the plaintext) Encryption System.`,
+	Long:  `Decode a file encoded by the TNT2 Infinite (with respect to the plaintext) Key Encryption System.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		decode(args)
 	},
