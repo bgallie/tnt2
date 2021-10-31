@@ -51,8 +51,7 @@ const (
 var rootCmd = &cobra.Command{
 	Use:   "tnt2",
 	Short: "An Infinite Key Encryption System",
-	Long: `tnt2 is a program the encrypts/decrypts files using an infinite
-	(with respect to the plaintext) key.`,
+	Long:  `tnt2 is a program the encrypts/decrypts files using an infinite (with respect to the plaintext) key.`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
