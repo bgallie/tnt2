@@ -41,8 +41,8 @@ var (
 	cntrFileName     string
 	inputFileName    string
 	outputFileName   string
-	Version          string // Set on build using -ldflags "-X github.com/bgallie/tnt2/cmd.Version=$(git tag -l | tail -1)
-	BuildDate        string //							    -X github.com/bgallie/tnt2/cmd.BuildDate=$(date -Iminutes)"
+	Version          string = "information not available." // Set on build using -ldflags "-X github.com/bgallie/tnt2/cmd.Version=$(git tag -l | tail -1)
+	BuildDate        string = "date not available"         //							   -X github.com/bgallie/tnt2/cmd.BuildDate=$(date -Iminutes)"
 )
 
 const (
