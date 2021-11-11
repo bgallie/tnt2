@@ -69,10 +69,10 @@ Display version and detailed build information for tnt2.
   -h, --help   help for version
 
 ## Global Flags:
-      --config string         config file (default is $HOME/.tnt2.yaml)
-  -i, --inputFile string      Name of the plaintext file to encrypt/decrypt. (default "-")
-  -o, --outputFile string     Name of the file containing the encrypted/decrypted plaintext.
-  -f, --proformafile string   the file name containing the proforma machine to use instead of the builtin proforma machine.
+          --config string         config file (default is $HOME/.tnt2.yaml)
+      -i, --inputFile string      Name of the plaintext file to encrypt/decrypt. (default "-")
+      -o, --outputFile string     Name of the file containing the encrypted/decrypted plaintext.
+      -f, --proformafile string   the file name containing the proforma machine to use instead of the builtin proforma machine.
 
 # Secret Key
 
