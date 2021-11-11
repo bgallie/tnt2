@@ -47,7 +47,7 @@ var (
 var encodeCmd = &cobra.Command{
 	Use:   "encode",
 	Short: "Encode plaintext using TNT2",
-	Long:  `Encode plaintext using the TNT2 Infinite Key (with respect to the plaintext) Encryption System.`,
+	Long:  `Encode plaintext using the TNT2 Infinite (with respect to the plaintext) Key Encryption System.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		useBinary = !(useASCII85 || usePem)
 		encode(args)

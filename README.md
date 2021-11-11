@@ -9,6 +9,7 @@ tnt2 - a program the encrypts/decrypts files using an infinite (with respect to 
       decode      Decode a TNT2 encoded file.  
       encode      Encode plaintext using TNT2  
       help        Help about any command
+      version     Display version information
 
 ## Flags:
           --config string         config file (default is $HOME/.tnt2.yaml)\n      
@@ -16,6 +17,7 @@ tnt2 - a program the encrypts/decrypts files using an infinite (with respect to 
       -i, --inputFile string      Name of the plaintext file to encrypt/decrypt. (default "-")
       -o, --outputFile string     Name of the file containing
       -f, --proformafile string   Name of file containing the proforma machine to use.
+      -v, --version               version for tnt2
 
 Use "tnt2 [command] --help" for more information about a command.
 
@@ -25,7 +27,8 @@ respect to the plaintext) key to encode the data.  The psuedo-random generator
 used by **tnt2** can encode approximately 1.680088572×10³⁹ bytes before the
 generated key will repeat itself.
 
-# Encoding
+# encode
+Encode plaintext using the TNT2 Infinite (with respect to the plaintext) Key Encryption System.
 ## Usage:
   tnt2 encode [flags]
 
@@ -44,7 +47,8 @@ generated key will repeat itself.
       -i, --inputFile string    Name of the plaintext file to encrypt/decrypt. (default "-")
       -o, --outputFile string   Name of the file containing the encrypted/decrypted plaintext.
 
-# Decoding
+# decode
+Decode a file encoded by the TNT2 Infinite (with respect to the plaintext) Key Encryption System.
 ## Usage:
   tnt2 decode [flags]
 
@@ -55,6 +59,20 @@ generated key will repeat itself.
           --config string       config file (default is $HOME/.tnt2.yaml)
       -i, --inputFile string    Name of the plaintext file to encrypt/decrypt. (default "-")
       -o, --outputFile string   Name of the file containing the encrypted/decrypted plaintext.
+
+# version
+Display version and detailed build information for tnt2.
+## Usage:
+  tnt2 version [flags]
+
+## Flags:
+  -h, --help   help for version
+
+## Global Flags:
+      --config string         config file (default is $HOME/.tnt2.yaml)
+  -i, --inputFile string      Name of the plaintext file to encrypt/decrypt. (default "-")
+  -o, --outputFile string     Name of the file containing the encrypted/decrypted plaintext.
+  -f, --proformafile string   the file name containing the proforma machine to use instead of the builtin proforma machine.
 
 # Secret Key
 
