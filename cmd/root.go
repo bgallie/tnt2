@@ -41,8 +41,12 @@ var (
 	cntrFileName     string
 	inputFileName    string
 	outputFileName   string
-	Version          string = "information not available" // Set on build using -ldflags "-X github.com/bgallie/tnt2/cmd.Version=$(git tag -l | tail -1)
-	BuildDate        string = "date not available"        //							   -X github.com/bgallie/tnt2/cmd.BuildDate=$(date -Iminutes)"
+	GitCommit        string = "not set"
+	GitBranch        string = "not set"
+	GitState         string = "not set"
+	GitSummary       string = "not set"
+	BuildDate        string = "not set"
+	Version          string = "dev"
 )
 
 const (
@@ -54,7 +58,7 @@ var rootCmd = &cobra.Command{
 	Use:     "tnt2",
 	Short:   "An Infinite Key Encryption System",
 	Long:    `tnt2 is a program the encrypts/decrypts files using an infinite (with respect to the plaintext) key.`,
-	Version: fmt.Sprintf("%s built on %s", Version, BuildDate),
+	Version: Version,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
