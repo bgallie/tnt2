@@ -186,8 +186,8 @@ func getInputAndOutputFiles(encode bool) (*os.File, *os.File) {
 
 // checkFatal checks for error that are not io.EOF and io.ErrUnexpectedEOF and logs them.
 func checkError(e error) {
-	if e != nil && e != io.EOF && e != io.ErrUnexpectedEOF {
-		fmt.Fprintln(os.Stderr, "Error:", e)
+	if e != io.EOF && e != io.ErrUnexpectedEOF {
+		cobra.CheckErr(e)
 	}
 }
 
