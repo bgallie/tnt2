@@ -69,8 +69,8 @@ github.com/bgallie/filters/pem v0.0.0-20211016023717-e8eb8749828a h1:XciBBWs8rXs
 github.com/bgallie/filters/pem v0.0.0-20211016023717-e8eb8749828a/go.mod h1:T+gYfxtG+PPmxK0Cc+DlYp5vU84uNUAKnImInxVTokk=
 github.com/bgallie/jc1 v1.1.1 h1:lRzGB1TddAIcBMZzflASi+Dv10jfacRnIdI79XcLUsI=
 github.com/bgallie/jc1 v1.1.1/go.mod h1:DYi1LTKWFhce4XAKhvyDp6y4cFvRmoXWq0uaCSi59Rc=
-github.com/bgallie/tntengine v1.2.0 h1:BiPBIcyWkC/DWWVkz7tftbT8SOUHV4Opc2hkXbPX1Z4=
-github.com/bgallie/tntengine v1.2.0/go.mod h1:BUt2voUDYC7KgH1JX4Fc9ixso5vxZzSLRECTGgEiLEI=
+github.com/bgallie/tntengine v1.3.0 h1:xkI6PLBDMiTgvwbAFXWgzAxVL745KzFbfnvM7IoM6Qg=
+github.com/bgallie/tntengine v1.3.0/go.mod h1:kE+/ivo46AYxK0XWTiAA26R2oXmp7Xgb8hDfOV2UnFI=
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=
 github.com/bketelsen/crypt v0.0.4/go.mod h1:aI6NrJ0pMGgvZKL1iVgXLnfIFJtfV+bKCoqOes/6LfM=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
@@ -327,7 +327,6 @@ golang.org/x/crypto v0.0.0-20190923035154-9ee001bba392/go.mod h1:/lpIB1dKB+9EgE3
 golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
 golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20210817164053-32db794688a5/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
-golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa h1:idItI2DDfCokpg0N51B2VtiLdJ4vAuXC9fnCb2gACo4=
 golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
