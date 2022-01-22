@@ -35,17 +35,29 @@ var (
 	bytesRemaining int64
 )
 
+// decryptCmd represents the decrypt command
+var decryptCmd = &cobra.Command{
+	Use:   "decrypt",
+	Short: "Decrypt a TNT2 encrypted file.",
+	Long:  `Decrypt a file encrypted by the TNT2 Infinite (with respect to the plaintext) Key Encryption System.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		decrypt(args)
+	},
+}
+
 // decodeCmd represents the decode command
 var decodeCmd = &cobra.Command{
-	Use:   "decode",
-	Short: "Decode a TNT2 encoded file.",
-	Long:  `Decode a file encoded by the TNT2 Infinite (with respect to the plaintext) Key Encryption System.`,
+	Use:        "decode",
+	Short:      "Decode a TNT2 encoded file.",
+	Long:       `[DEPRECATED] Decode a file encoded by the TNT2 Infinite (with respect to the plaintext) Key Encryption System.`,
+	Deprecated: "use \"decrypt\" instead.",
 	Run: func(cmd *cobra.Command, args []string) {
-		decode(args)
+		decrypt(args)
 	},
 }
 
 func init() {
+	rootCmd.AddCommand(decryptCmd)
 	rootCmd.AddCommand(decodeCmd)
 }
 
@@ -64,7 +76,7 @@ func fromBinaryHelper(rdr io.Reader) *io.PipeReader {
 	return rRdr
 }
 
-func decode(args []string) {
+func decrypt(args []string) {
 	initEngine(args)
 
 	// Set the engine type and build the cipher machine.

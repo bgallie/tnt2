@@ -37,39 +37,60 @@ var (
 	usePem       bool
 	useBinary    bool
 	compression  bool
-	cnt          string = "-1"
+	cnt          string
 	wg           sync.WaitGroup
 	bytesWritten int64
 	headerLine   string
 )
 
-// encodeCmd represents the encode command
-var encodeCmd = &cobra.Command{
-	Use:   "encode",
-	Short: "Encode plaintext using TNT2",
-	Long:  `Encode plaintext using the TNT2 Infinite (with respect to the plaintext) Key Encryption System.`,
+// encryptCmd represents the encrypt command
+var encryptCmd = &cobra.Command{
+	Use:   "encrypt",
+	Short: "Encrypt plaintext using TNT2",
+	Long:  `Encrypt plaintext using the TNT2 Infinite (with respect to the plaintext) Key Encryption System.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		useBinary = !(useASCII85 || usePem)
-		encode(args)
+		encrypt(args)
+	},
+}
+
+// encodeCmd represents the encode command
+var encodeCmd = &cobra.Command{
+	Use:        "encode",
+	Short:      "Encode plaintext using TNT2",
+	Long:       `[DEPRECATED] Encode plaintext using the TNT2 Infinite (with respect to the plaintext) Key Encryption System.`,
+	Deprecated: "use \"encrypt\" instead.",
+	Run: func(cmd *cobra.Command, args []string) {
+		useBinary = !(useASCII85 || usePem)
+		encrypt(args)
 	},
 }
 
 func init() {
+	rootCmd.AddCommand(encryptCmd)
 	rootCmd.AddCommand(encodeCmd)
+	encryptCmd.Flags().BoolVarP(&useASCII85, "useASCII85", "a", false, "use ASCII85 encoding")
+	encryptCmd.Flags().BoolVarP(&usePem, "usePem", "p", false, "use PEM encoding.")
+	encryptCmd.Flags().BoolVarP(&compression, "compress", "c", false, "compress input file using flate")
+	encryptCmd.Flags().StringVarP(&cnt, "count", "n", "", `initial block count
+The inital block count can be given as a fraction (eg. 1/3 or 1/2) of the maximum blocks encrypted before the key repeats.
+The inital block count is only effective on the first use of the secret key.`)
 	encodeCmd.Flags().BoolVarP(&useASCII85, "useASCII85", "a", false, "use ASCII85 encoding")
 	encodeCmd.Flags().BoolVarP(&usePem, "usePem", "p", false, "use PEM encoding.")
 	encodeCmd.Flags().BoolVarP(&compression, "compress", "c", false, "compress input file using flate")
-	encodeCmd.Flags().StringVarP(&cnt, "count", "n", "-1", "initial block count")
+	encodeCmd.Flags().StringVarP(&cnt, "count", "n", "", `initial block count
+The inital block count can be given as a fraction (eg. 1/3 or 1/2) of the maximum blocks encrypted before the key repeats.
+The inital block count is only effective on the first use of the secret key.`)
 }
 
-func encode(args []string) {
+func encrypt(args []string) {
 	initEngine(args)
 
 	// Get the starting block count.  cnt can be a number or a fraction such
 	// as "1/2", "2/3", or "3/4".  If it is a fraction, then the starting block
 	// count is calculated by multiplying the maximal states of the tntEngine
 	// by the fraction.
-	if cnt != "-1" {
+	if len(cnt) != 0 {
 		var good bool
 		flds := strings.Split(cnt, "/")
 		if len(flds) == 1 {
@@ -100,7 +121,7 @@ func encode(args []string) {
 	tntMachine.BuildCipherMachine()
 
 	// Read in the map of counts from the file which holds the counts and get
-	// the count to use to encode the file.
+	// the count to use to encrypt the file.
 	cMap = make(map[string]*big.Int)
 	cMap = readCounterFile(cMap)
 	mKey = tntMachine.CounterKey()
@@ -121,7 +142,7 @@ func encode(args []string) {
 	var blck pem.Block
 	if usePem { //useASCII85 || useBinary {
 		blck.Headers = make(map[string]string)
-		blck.Type = "TNT2 Encoded Message"
+		blck.Type = "TNT2 Encrypted Message"
 		blck.Headers["Counter"] = fmt.Sprintf("%s", tntMachine.Index())
 		if len(inputFileName) > 0 && inputFileName != "-" {
 			blck.Headers["FileName"] = inputFileName

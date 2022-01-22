@@ -10,8 +10,8 @@ tnt2 - a program the encrypts/decrypts files using an infinite (with respect to 
 
 ## Available Commands:
       completion  generate the autocompletion script for the specified shell
-      decode      Decode a TNT2 encoded file.  
-      encode      Encode plaintext using TNT2  
+      decrypt     Decrypt a TNT2 encoded file.  
+      encrypt     Encrypt plaintext using TNT2  
       help        Help about any command
       version     Display version information
 
@@ -32,10 +32,13 @@ used by **tnt2** can encode approximately 1.680088572×10³⁹ bytes before the
 generated key will repeat itself.
 
 # COMMANDS
-## encode
-Encode plaintext using the TNT2 Infinite (with respect to the plaintext) Key Encryption System.
+## encrypt 
+
+tnt2 encrypt [flags]
+
+Encrypt plaintext using the TNT2 Infinite (with respect to the plaintext) Key Encryption System.
 ### Usage:
-  tnt2 encode [flags]
+  tnt2 encrypt [flags]
 
 ### Flags:
       -c, --compress       compress input file using flate  
@@ -53,14 +56,14 @@ Encode plaintext using the TNT2 Infinite (with respect to the plaintext) Key Enc
       -o, --outputFile string    Name of the file containing the encrypted/decrypted plaintext.
       -f, --proformafile string  the file name containing the proforma machine to use.
 
-## decode
-Decode a file encoded by the TNT2 Infinite (with respect to the plaintext) Key Encryption System.
+## decrypt
+Decrypt a file encoded by the TNT2 Infinite (with respect to the plaintext) Key Encryption System.
 ### Usage:
-  tnt2 decode [flags]
+  tnt2 decrypt [flags]
 
 ### Flags:
 
-      -h, --help   help for decode
+      -h, --help   help for decrypt
 
 ### Global Flags:
           --config string         config file (default is $HOME/.tnt2.yaml)
