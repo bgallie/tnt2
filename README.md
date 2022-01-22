@@ -6,8 +6,8 @@ tnt2 - a program the encrypts/decrypts files using an infinite (with respect to 
 
 ## Available Commands:
       completion  generate the autocompletion script for the specified shell
-      decrypt      decrypt a TNT2 encryptd file.  
-      encrypt      encrypt plaintext using TNT2  
+      decrypt     decrypt a TNT2 encryptd file.  
+      encrypt     encrypt plaintext using TNT2  
       help        Help about any command
       version     Display version information
 
