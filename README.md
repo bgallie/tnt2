@@ -1,17 +1,21 @@
 # NAME
+
 tnt2 - a program the encrypts/decrypts files using an infinite (with respect to the plaintext) key.
 
-# Usage:
+## Usage:
+
   **tnt2** [command]
 
-## Available Commands:
+### Available Commands:
+
       completion  generate the autocompletion script for the specified shell
       decrypt     decrypt a TNT2 encryptd file.  
       encrypt     encrypt plaintext using TNT2  
       help        Help about any command
       version     Display version information
 
-## Flags:
+### Flags:
+
           --config string         config file (default is $HOME/.tnt2.yaml)\n      
       -h, --help                  help for tnt2
       -i, --inputFile string      Name of the plaintext file to encrypt/decrypt. (default "-")
@@ -21,19 +25,25 @@ tnt2 - a program the encrypts/decrypts files using an infinite (with respect to 
 
 Use "tnt2 [command] --help" for more information about a command.
 
-# DESCRIPTION
-**tnt2** is an encryption/description system that uses an infinite (with
+## DESCRIPTION
+
+**tnt2** is an encryption/decryption system that uses an infinite (with
 respect to the plaintext) key to encrypt the data.  The psuedo-random generator
 used by **tnt2** can encrypt approximately 1.680088572×10³⁹ bytes before the
 generated key will repeat itself.
 
-# COMMANDS
-## encrypt
+## COMMANDS
+
+### encrypt
+
 Encrypt plaintext using the TNT2 Infinite (with respect to the plaintext) Key Encryption System.
-### Usage:
+
+#### Usage:
+
   tnt2 encrypt [flags]
 
-### Flags:
+#### Flags:
+
       -c, --compress       compress input file using flate  
       -n, --count string   initial block count (default "-1")
 
@@ -43,37 +53,45 @@ Encrypt plaintext using the TNT2 Infinite (with respect to the plaintext) Key En
       -a, --useASCII85     use ASCII85 encoding  
       -p, --usePem         use PEM encoding.
 
-### Global Flags:
+#### Global Flags:
+
           --config string        config file (default is $HOME/.tnt2.yaml)
       -i, --inputFile string     Name of the plaintext file to encrypt/decrypt. (default "-")
       -o, --outputFile string    Name of the file containing the encrypted/decrypted plaintext.
       -f, --proformafile string  the file name containing the proforma machine to use.
 
-## decrypt
+### decrypt
+
 decrypt a file encryptd by the TNT2 Infinite (with respect to the plaintext) Key Encryption System.
-### Usage:
+
+#### Usage:
+
   tnt2 decrypt [flags]
 
-### Flags:
+#### Flags:
 
       -h, --help   help for decrypt
 
-### Global Flags:
+#### Global Flags:
+
           --config string         config file (default is $HOME/.tnt2.yaml)
       -i, --inputFile string      Name of the plaintext file to encrypt/decrypt. (default "-")
       -o, --outputFile string     Name of the file containing the encrypted/decrypted plaintext.
       -f, --proformafile string   the file name containing the proforma machine to use.
 
-## version
+### version
+
 Display version and detailed build information for tnt2.
-### Usage:
+
+#### Usage:
+
   tnt2 version [flags]
 
-### Flags:
+#### Flags:
 
       -h, --help   help for version
 
-# Secret Key
+## Secret Key
 
 The secret key that is used to encrypt/decrypt the data can be supplied 
 in one (1) of three (3) ways, in order of security:
@@ -82,7 +100,8 @@ in one (1) of three (3) ways, in order of security:
 2. The secret key is passed in via the tnt2Secret environment variable.
 3. The secret key is passwd as arguments after all the valid options (least secure)
 
-# COPYRIGHT
+## COPYRIGHT
+
    Copyright © 2021 Billy G. Allie
 
    Licensed under the Apache License, Version 2.0 (the "License");

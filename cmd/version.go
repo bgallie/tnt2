@@ -40,7 +40,9 @@ var versionCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(versionCmd)
+	if GitSummary != "not set" {
+		rootCmd.AddCommand(versionCmd)
+	}
 
 	// Here you will define your flags and configuration settings.
 
