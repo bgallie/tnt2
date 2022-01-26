@@ -64,6 +64,13 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	if GitSummary != "not set" {
+		idx := strings.Index(GitSummary, "-")
+		Version = GitSummary
+		if idx >= 0 {
+			Version = GitSummary[0:idx]
+		}
+	}
 	rootCmd.Version = Version
 	cobra.CheckErr(rootCmd.Execute())
 }

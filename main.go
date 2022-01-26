@@ -16,18 +16,9 @@ limitations under the License.
 package main
 
 import (
-	"strings"
-
 	"github.com/bgallie/tnt2/cmd"
 )
 
 func main() {
-	if cmd.GitSummary != "not set" {
-		idx := strings.Index(cmd.GitSummary, "-")
-		cmd.Version = cmd.GitSummary
-		if idx >= 0 {
-			cmd.Version = cmd.GitSummary[0:idx]
-		}
-	}
 	cmd.Execute()
 }
