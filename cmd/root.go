@@ -70,8 +70,8 @@ func Execute() {
 		if idx >= 0 {
 			Version = GitSummary[0:idx]
 		}
+		rootCmd.Version = Version
 	}
-	rootCmd.Version = Version
 	cobra.CheckErr(rootCmd.Execute())
 }
 
