@@ -2,14 +2,12 @@ module github.com/bgallie/tnt2
 
 go 1.17
 
-// replace github.com/bgallie/tntengine => /home/bga/Documents/GitHub/bgallie/tntengine
-
 require (
 	github.com/bgallie/filters/ascii85 v0.0.0-20211016023717-e8eb8749828a
 	github.com/bgallie/filters/flate v0.0.0-20211016023717-e8eb8749828a
 	github.com/bgallie/filters/lines v0.0.0-20211016023717-e8eb8749828a
 	github.com/bgallie/filters/pem v0.0.0-20211016023717-e8eb8749828a
-	github.com/bgallie/tntengine v1.3.0
+	github.com/bgallie/tntengine v1.4.0
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.9.0
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1
