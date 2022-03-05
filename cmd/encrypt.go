@@ -21,6 +21,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -129,7 +130,7 @@ func encrypt(args []string) {
 		cMap[mKey] = iCnt
 	} else {
 		iCnt = cMap[mKey]
-		if cnt != "-1" {
+		if cnt != "" {
 			fmt.Fprintln(os.Stderr, "Ignoring the block count argument - using the value from the .tnt2 file.")
 		}
 	}
@@ -148,8 +149,9 @@ func encrypt(args []string) {
 			blck.Headers["FileName"] = inputFileName
 		}
 		blck.Headers["Compression"] = fmt.Sprintf("%v", compression)
+		blck.Headers["ApiLevel"] = strconv.Itoa(tnt2ApiLevel)
 	} else {
-		headerLine = "+TNT2|"
+		headerLine = fmt.Sprintf("+TNT2|%d|", tnt2ApiLevel)
 		if len(inputFileName) > 0 && inputFileName != "-" {
 			headerLine += inputFileName
 		}
@@ -224,7 +226,7 @@ func toBinaryHelper(rdr io.Reader) *io.PipeReader {
 				plainText = append(plainText, b[:cnt]...)
 				for len(plainText) >= tntengine.CypherBlockBytes {
 					blk := *new(tntengine.CypherBlock)
-					blk.Length = tntengine.CypherBlockBytes
+					blk.Length = int8(tntengine.CypherBlockBytes)
 					_ = copy(blk.CypherBlock[:], plainText[:blk.Length])
 					leftMost <- blk
 					blk = <-rightMost

@@ -21,6 +21,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/bgallie/filters/ascii85"
@@ -82,27 +83,13 @@ func decrypt(args []string) {
 	// Set the engine type and build the cipher machine.
 	tntMachine.SetEngineType("D")
 	tntMachine.BuildCipherMachine()
-
-	// Read in the map of counts from the file which holds the counts and get
-	// the count to use to encode the file.
-	cMap = make(map[string]*big.Int)
-	cMap = readCounterFile(cMap)
-	mKey = tntMachine.CounterKey()
-	if cMap[mKey] == nil {
-		cMap[mKey] = iCnt
-	} else {
-		iCnt = cMap[mKey]
-		if cnt != "-1" {
-			fmt.Fprintln(os.Stderr, "Ignoring the block count argument - using the value from the .tnt2 file.")
-		}
-	}
-	// Now we can set the index of the ciper machine.
-	tntMachine.SetIndex(iCnt)
 	fin, fout := getInputAndOutputFiles(false)
 	defer fout.Close()
+	var fal string
 	var ofName string
 	var bRdr *bufio.Reader
 	var pRdr *io.PipeReader
+	var exists bool
 	var err error
 	bRdr = bufio.NewReader(fin)
 	b, err := bRdr.Peek(5)
@@ -111,6 +98,10 @@ func decrypt(args []string) {
 		usePem = true
 		var blck pem.Block
 		pRdr, blck = pem.FromPem(bRdr)
+		fal, exists = blck.Headers["ApiLevel"]
+		if !exists {
+			fal = "-1"
+		}
 		iCnt, _ = new(big.Int).SetString(blck.Headers["Counter"], 10)
 		if len(outputFileName) == 0 {
 			fname, ok := blck.Headers["FileName"]
@@ -135,15 +126,24 @@ func decrypt(args []string) {
 				ofName = fields[0]
 				iCnt, _ = new(big.Int).SetString(fields[1], 10)
 			case 6:
-				ofName = fields[1]
-				useASCII85 = fields[2] == "a"
-				useBinary = fields[2] == "b"
-				compression = fields[3] == "true"
-				iCnt, _ = new(big.Int).SetString(fields[4], 10)
-				_, err = fmt.Sscanf(fields[5], "%d", &bytesRemaining)
+				fal = "-1"
+			case 7:
+				fal = fields[1]
+				ofName = fields[2]
+				useASCII85 = fields[3] == "a"
+				useBinary = fields[3] == "b"
+				compression = fields[4] == "true"
+				iCnt, _ = new(big.Int).SetString(fields[5], 10)
+				_, err = fmt.Sscanf(fields[6], "%d", &bytesRemaining)
 				checkError(err)
 			}
 		}
+	}
+
+	fileApiLevel, _ := strconv.Atoi(fal)
+	if fileApiLevel != tnt2ApiLevel {
+		fmt.Fprintf(os.Stderr, "Error: API Level mismatch. FileApiLevel: %d, Tnt2ApiLevel: %d\n", fileApiLevel, tnt2ApiLevel)
+		os.Exit(100)
 	}
 
 	if len(outputFileName) == 0 {
@@ -183,7 +183,7 @@ func decrypt(args []string) {
 				encText = append(encText, b[:cnt]...)
 				for len(encText) >= tntengine.CypherBlockBytes {
 					blk := *new(tntengine.CypherBlock)
-					blk.Length = tntengine.CypherBlockBytes
+					blk.Length = int8(tntengine.CypherBlockBytes)
 					_ = copy(blk.CypherBlock[:], encText[:blk.Length])
 					leftMost <- blk
 					blk = <-rightMost
