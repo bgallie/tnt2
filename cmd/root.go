@@ -51,7 +51,7 @@ var (
 
 const (
 	tnt2CountFile = ".tnt2"
-	tnt2ApiLevel  = 1
+	tnt2ApiLevel  = 2
 )
 
 // rootCmd represents the base command when called without any subcommands
