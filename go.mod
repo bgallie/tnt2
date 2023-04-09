@@ -1,6 +1,6 @@
 module github.com/bgallie/tnt2
 
-go 1.17
+go 1.20
 
 require (
 	github.com/bgallie/filters/ascii85 v0.0.0-20211016023717-e8eb8749828a
@@ -30,7 +30,7 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064 // indirect
 	golang.org/x/sys v0.1.0 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/text v0.3.8 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
