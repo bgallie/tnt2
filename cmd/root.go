@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,12 +16,14 @@ limitations under the License.
 package cmd
 
 import (
+	"debug/buildinfo"
 	"encoding/gob"
 	"fmt"
 	"io"
 	"math/big"
 	"os"
 	"os/user"
+	dbug "runtime/debug"
 	"strings"
 
 	"github.com/bgallie/tntengine"
@@ -42,9 +44,9 @@ var (
 	inputFileName    string
 	outputFileName   string
 	GitCommit        string = "not set"
-	GitBranch        string = "not set"
 	GitState         string = "not set"
 	GitSummary       string = "not set"
+	GitDate          string = "not set"
 	BuildDate        string = "not set"
 	Version          string = ""
 )
@@ -82,6 +84,25 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&proFormaFileName, "proformafile", "f", "", "the file name containing the proforma machine to use instead of the builtin proforma machine.")
 	rootCmd.PersistentFlags().StringVarP(&inputFileName, "inputFile", "i", "-", "Name of the plaintext file to encrypt/decrypt.")
 	rootCmd.PersistentFlags().StringVarP(&outputFileName, "outputFile", "o", "", "Name of the file containing the encrypted/decrypted plaintext.")
+	// Extract version information from the stored build information.
+	bi, err := buildinfo.ReadFile(os.Args[0])
+	cobra.CheckErr(err)
+	GitDate = getBuildSettings(bi.Settings, "vcs.time")
+	GitCommit = getBuildSettings(bi.Settings, "vcs.revision")
+	GitSummary = fmt.Sprintf("%s-%s", bi.Main.Version, GitCommit[0:7])
+	GitState = "clean"
+	if getBuildSettings(bi.Settings, "vcs.modified") == "true" {
+		GitState = "dirty"
+	}
+}
+
+func getBuildSettings(settings []dbug.BuildSetting, key string) string {
+	for _, v := range settings {
+		if v.Key == key {
+			return v.Value
+		}
+	}
+	return ""
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -146,9 +167,9 @@ func initEngine(args []string) {
 }
 
 /*
-	getInputAndOutputFiles will return the input and output files to use while
-	encrypting/decrypting data.  If input and/or output files names were given,
-	then those files will be opened.  Otherwise stdin and stdout are used.
+getInputAndOutputFiles will return the input and output files to use while
+encrypting/decrypting data.  If input and/or output files names were given,
+then those files will be opened.  Otherwise stdin and stdout are used.
 */
 func getInputAndOutputFiles(encode bool) (*os.File, *os.File) {
 	var fin *os.File
