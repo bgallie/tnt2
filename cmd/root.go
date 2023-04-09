@@ -16,7 +16,6 @@ limitations under the License.
 package cmd
 
 import (
-	"debug/buildinfo"
 	"encoding/gob"
 	"fmt"
 	"io"
@@ -85,14 +84,15 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&inputFileName, "inputFile", "i", "-", "Name of the plaintext file to encrypt/decrypt.")
 	rootCmd.PersistentFlags().StringVarP(&outputFileName, "outputFile", "o", "", "Name of the file containing the encrypted/decrypted plaintext.")
 	// Extract version information from the stored build information.
-	bi, err := buildinfo.ReadFile(os.Args[0])
-	cobra.CheckErr(err)
-	GitDate = getBuildSettings(bi.Settings, "vcs.time")
-	GitCommit = getBuildSettings(bi.Settings, "vcs.revision")
-	GitSummary = fmt.Sprintf("%s-%s", bi.Main.Version, GitCommit[0:7])
-	GitState = "clean"
-	if getBuildSettings(bi.Settings, "vcs.modified") == "true" {
-		GitState = "dirty"
+	bi, ok := dbug.ReadBuildInfo()
+	if ok {
+		GitDate = getBuildSettings(bi.Settings, "vcs.time")
+		GitCommit = getBuildSettings(bi.Settings, "vcs.revision")
+		GitSummary = fmt.Sprintf("%s-1-%s", bi.Main.Version, GitCommit[0:7])
+		GitState = "clean"
+		if getBuildSettings(bi.Settings, "vcs.modified") == "true" {
+			GitState = "dirty"
+		}
 	}
 }
 
