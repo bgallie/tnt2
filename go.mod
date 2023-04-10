@@ -1,4 +1,4 @@
-module github.com/bgallie/tnt2/V3
+module github.com/bgallie/tnt2
 
 go 1.20
 
