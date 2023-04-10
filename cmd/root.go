@@ -85,10 +85,14 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&outputFileName, "outputFile", "o", "", "Name of the file containing the encrypted/decrypted plaintext.")
 	// Extract version information from the stored build information.
 	bi, ok := dbug.ReadBuildInfo()
+	// fmt.Println(bi)
 	if ok {
+		Version = bi.Main.Version
 		GitDate = getBuildSettings(bi.Settings, "vcs.time")
 		GitCommit = getBuildSettings(bi.Settings, "vcs.revision")
-		GitSummary = fmt.Sprintf("%s-1-%s", bi.Main.Version, GitCommit[0:7])
+		if len(GitCommit) > 1 {
+			GitSummary = fmt.Sprintf("%s-1-%s", Version, GitCommit[0:7])
+		}
 		GitState = "clean"
 		if getBuildSettings(bi.Settings, "vcs.modified") == "true" {
 			GitState = "dirty"
