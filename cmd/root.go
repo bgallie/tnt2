@@ -19,11 +19,14 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
+	"io/fs"
 	"math/big"
 	"os"
 	"os/user"
+	"path/filepath"
 	dbug "runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/bgallie/tntengine"
 	"github.com/spf13/cobra"
@@ -66,14 +69,6 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	// if GitSummary != "not set" {
-	// 	idx := strings.Index(GitSummary, "-")
-	// 	Version = GitSummary
-	// 	if idx >= 0 {
-	// 		Version = GitSummary[0:idx]
-	// 	}
-	// 	rootCmd.Version = Version
-	// }
 	cobra.CheckErr(rootCmd.Execute())
 }
 
@@ -83,9 +78,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&proFormaFileName, "proformafile", "f", "", "the file name containing the proforma machine to use instead of the builtin proforma machine.")
 	rootCmd.PersistentFlags().StringVarP(&inputFileName, "inputFile", "i", "-", "Name of the plaintext file to encrypt/decrypt.")
 	rootCmd.PersistentFlags().StringVarP(&outputFileName, "outputFile", "o", "", "Name of the file containing the encrypted/decrypted plaintext.")
+
 	// Extract version information from the stored build information.
 	bi, ok := dbug.ReadBuildInfo()
-	// fmt.Println(bi)
 	if ok {
 		Version = bi.Main.Version
 		rootCmd.Version = Version
@@ -98,6 +93,19 @@ func init() {
 		if getBuildSettings(bi.Settings, "vcs.modified") == "true" {
 			GitState = "dirty"
 		}
+	}
+
+	// Get the build date (as the modified date of the executable) if the build date
+	// is not set.
+	if BuildDate == "not set" {
+		fpath, err := os.Executable()
+		cobra.CheckErr(err)
+		fpath, err = filepath.EvalSymlinks(fpath)
+		cobra.CheckErr(err)
+		fsys := os.DirFS(filepath.Dir(fpath))
+		fInfo, err := fs.Stat(fsys, filepath.Base(fpath))
+		cobra.CheckErr(err)
+		BuildDate = fInfo.ModTime().UTC().Format(time.RFC3339)
 	}
 }
 
