@@ -35,13 +35,3 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/bgallie/filters/ascii85 => ../filters/ascii85
-
-replace github.com/bgallie/filters/flate => ../filters/flate
-
-replace github.com/bgallie/filters/lines => ../filters/lines
-
-replace github.com/bgallie/filters/pem => ../filters/pem
-
-replace github.com/bgallie/filters/base64 => ../filters/base64

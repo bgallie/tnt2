@@ -38,6 +38,16 @@ cloud.google.com/go/storage v1.14.0/go.mod h1:GrKmX003DSIwi9o29oFT7YDnHYwZoctc3f
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
+github.com/bgallie/filters/ascii85 v0.0.0-20230704004753-167f29af6fad h1:1YHTTMY7WCM/OcVRj24JbZBRBP3P6NwdNmsk5ogyTEI=
+github.com/bgallie/filters/ascii85 v0.0.0-20230704004753-167f29af6fad/go.mod h1:sogeXJkciNHqfviKZrPuL02AOaKDdOB2v19m+KhCSEY=
+github.com/bgallie/filters/base64 v0.0.0-20230704004753-167f29af6fad h1:RBwmnxgsC5QJtLM2Py3dXC+h2r/j3YDnQYwdFO7SaoQ=
+github.com/bgallie/filters/base64 v0.0.0-20230704004753-167f29af6fad/go.mod h1:4K61ZAGHfjYSMJzGJGt8DolShlaYSNbDmi32KREFN6k=
+github.com/bgallie/filters/flate v0.0.0-20230704004753-167f29af6fad h1:WjQIXkFftTgNjFOkINSDby/wjNZ3VdgC7ikFw7FKx+I=
+github.com/bgallie/filters/flate v0.0.0-20230704004753-167f29af6fad/go.mod h1:RGah0yn/651XgcGOF4PRpS/P2tKry29//WNJ/ukcKWw=
+github.com/bgallie/filters/lines v0.0.0-20230704004753-167f29af6fad h1:AVAkJshIb/NGeZU2CoHwK9uNR470AeiJx0hKtQ/IAE4=
+github.com/bgallie/filters/lines v0.0.0-20230704004753-167f29af6fad/go.mod h1:yAz6fX/oOilhaMOK4NNh8z0X7sOQZhWNSCo34N8SaOg=
+github.com/bgallie/filters/pem v0.0.0-20230704004753-167f29af6fad h1:dY1mOqdrVZ3lBhTz835s3Ipb2fdrrnkyJogNrDWR1Lo=
+github.com/bgallie/filters/pem v0.0.0-20230704004753-167f29af6fad/go.mod h1:X8Wn2XUxwyqux1mot3SUCnhjBCZDUPVC1oTvnDLGYS0=
 github.com/bgallie/jc1 v1.2.2 h1:EQtpW96gqzVH8jzXjiwIYUec0QlSwjp6OMOTO1rruoI=
 github.com/bgallie/jc1 v1.2.2/go.mod h1:DYi1LTKWFhce4XAKhvyDp6y4cFvRmoXWq0uaCSi59Rc=
 github.com/bgallie/tnt2engine v1.5.1 h1:GghcA6BQhmLUBezB6fNWOC1nDjJ7tEgaOPfe/tyAhAs=
