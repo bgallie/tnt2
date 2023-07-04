@@ -26,9 +26,10 @@ import (
 	"path/filepath"
 	dbug "runtime/debug"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/bgallie/tntengine"
+	"github.com/bgallie/tnt2engine"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -38,13 +39,20 @@ import (
 var (
 	cfgFile          string
 	proFormaFileName string
-	tntMachine       tntengine.TntEngine
+	tnt2Machine      tnt2engine.Tnt2Engine
 	iCnt             *big.Int
 	cMap             map[string]*big.Int
 	mKey             string
 	cntrFileName     string
 	inputFileName    string
 	outputFileName   string
+	useASCII85       bool
+	usePem           bool
+	useBinary        bool
+	compression      bool
+	cnt              string
+	wg               sync.WaitGroup
+	headerLine       string
 	GitCommit        string = "not set"
 	GitState         string = "not set"
 	GitSummary       string = "not set"
@@ -55,7 +63,7 @@ var (
 
 const (
 	tnt2CountFile = ".tnt2"
-	tnt2ApiLevel  = 2
+	tnt2ApiLevel  = 3
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -78,7 +86,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&proFormaFileName, "proformafile", "f", "", "the file name containing the proforma machine to use instead of the builtin proforma machine.")
 	rootCmd.PersistentFlags().StringVarP(&inputFileName, "inputFile", "i", "-", "Name of the plaintext file to encrypt/decrypt.")
 	rootCmd.PersistentFlags().StringVarP(&outputFileName, "outputFile", "o", "", "Name of the file containing the encrypted/decrypted plaintext.")
-
 	// Extract version information from the stored build information.
 	bi, ok := dbug.ReadBuildInfo()
 	if ok {
@@ -94,7 +101,6 @@ func init() {
 			GitState = "dirty"
 		}
 	}
-
 	// Get the build date (as the modified date of the executable) if the build date
 	// is not set.
 	if BuildDate == "not set" {
@@ -133,14 +139,11 @@ func initConfig() {
 		viper.SetConfigType("yaml")
 		viper.SetConfigName(".tnt2")
 	}
-
 	viper.AutomaticEnv() // read in environment variables that match
-
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
-
 	// Get the counter file name based on the current user.
 	u, err := user.Current()
 	cobra.CheckErr(err)
@@ -168,15 +171,13 @@ func initEngine(args []string) {
 	} else {
 		secret = strings.Join(args, " ")
 	}
-
 	if len(secret) == 0 {
 		cobra.CheckErr("You must supply a password.")
 		// } else {
 		// 	fmt.Printf("Secret: [%s]\n", secret)
 	}
-
-	// Initialize the tntengine with the secret key and the named proforma file.
-	tntMachine.Init([]byte(secret), proFormaFileName)
+	// Initialize the tnt2engine with the secret key and the named proforma file.
+	tnt2Machine.Init([]byte(secret), proFormaFileName)
 }
 
 /*
@@ -187,7 +188,6 @@ then those files will be opened.  Otherwise stdin and stdout are used.
 func getInputAndOutputFiles(encode bool) (*os.File, *os.File) {
 	var fin *os.File
 	var err error
-
 	if len(inputFileName) > 0 {
 		if inputFileName == "-" {
 			fin = os.Stdin
@@ -198,9 +198,7 @@ func getInputAndOutputFiles(encode bool) (*os.File, *os.File) {
 	} else {
 		fin = os.Stdin
 	}
-
 	var fout *os.File
-
 	if len(outputFileName) > 0 {
 		if outputFileName == "-" {
 			fout = os.Stdout
@@ -223,8 +221,49 @@ func getInputAndOutputFiles(encode bool) (*os.File, *os.File) {
 			fout = os.Stdout
 		}
 	}
-	// fmt.Fprintf(os.Stderr, "Input: [%s] Output:[%s]\n", inputFileName, outputFileName)
 	return fin, fout
+}
+
+// cipherHelper is a filter that encrypts/decrypts the data from the input pipe.
+// The (encrypted/decrypted) data can be read using the returned PipeReader.
+func cipherHelper(rdr io.Reader, left, right chan tnt2engine.CipherBlock) *io.PipeReader {
+	var cnt int
+	var err error
+	rRdr, rWrtr := io.Pipe()
+	leftMost, rightMost := left, right
+	data := []byte(nil)
+	wg.Add(1)
+	go func() {
+		defer rWrtr.Close()
+		defer wg.Done()
+		err = nil
+		blk := make(tnt2engine.CipherBlock, tnt2engine.CipherBlockBytes)
+		for err != io.EOF {
+			b := make([]byte, 2048)
+			cnt, err = rdr.Read(b)
+			checkError(err)
+			if err != io.EOF {
+				data = append(data, b[:cnt]...)
+				for len(data) >= tnt2engine.CipherBlockBytes {
+					cnt = copy(blk, data)
+					leftMost <- blk[:cnt]
+					blk = <-rightMost
+					_, err1 := rWrtr.Write(blk)
+					checkError(err1)
+					data = data[len(blk):]
+				}
+			}
+		}
+		if len(data) > 0 {
+			cnt = copy(blk, data)
+			leftMost <- blk[:cnt]
+			blk = <-rightMost
+			cnt, err = rWrtr.Write(blk)
+			_ = cnt
+			checkError(err)
+		}
+	}()
+	return rRdr
 }
 
 // checkFatal checks for error that are not io.EOF and io.ErrUnexpectedEOF and logs them.
@@ -239,7 +278,6 @@ func readCounterFile(defaultMap map[string]*big.Int) map[string]*big.Int {
 	if err != nil {
 		return defaultMap
 	}
-
 	defer f.Close()
 	cmap := make(map[string]*big.Int)
 	dec := gob.NewDecoder(f)
@@ -252,7 +290,6 @@ func writeCounterFile(wMap map[string]*big.Int) error {
 	if err != nil {
 		return err
 	}
-
 	defer f.Close()
 	enc := gob.NewEncoder(f)
 	return enc.Encode(wMap)

@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,25 +23,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/bgallie/filters/ascii85"
 	"github.com/bgallie/filters/flate"
 	"github.com/bgallie/filters/lines"
 	"github.com/bgallie/filters/pem"
-	"github.com/bgallie/tntengine"
+	"github.com/bgallie/tnt2engine"
 	"github.com/spf13/cobra"
-)
-
-var (
-	useASCII85   bool
-	usePem       bool
-	useBinary    bool
-	compression  bool
-	cnt          string
-	wg           sync.WaitGroup
-	bytesWritten int64
-	headerLine   string
 )
 
 // encryptCmd represents the encrypt command
@@ -86,10 +74,9 @@ The inital block count is only effective on the first use of the secret key.`)
 
 func encrypt(args []string) {
 	initEngine(args)
-
 	// Get the starting block count.  cnt can be a number or a fraction such
 	// as "1/2", "2/3", or "3/4".  If it is a fraction, then the starting block
-	// count is calculated by multiplying the maximal states of the tntEngine
+	// count is calculated by multiplying the maximal states of the tnt2engine
 	// by the fraction.
 	if len(cnt) != 0 {
 		var good bool
@@ -100,7 +87,7 @@ func encrypt(args []string) {
 				cobra.CheckErr(fmt.Sprintf("Failed converting the count to a big.Int: [%s]\n", cnt))
 			}
 		} else if len(flds) == 2 {
-			m := new(big.Int).Set(tntMachine.MaximalStates())
+			m := new(big.Int).Set(tnt2Machine.MaximalStates())
 			a, good := new(big.Int).SetString(flds[0], 10)
 			if !good {
 				cobra.CheckErr(fmt.Sprintf("Failed converting the numerator to a big.Int: [%s]\n", flds[0]))
@@ -114,18 +101,16 @@ func encrypt(args []string) {
 			cobra.CheckErr(fmt.Sprintf("Incorrect initial count: [%s]\n", cnt))
 		}
 	} else {
-		iCnt = new(big.Int).Set(tntengine.BigZero)
+		iCnt = new(big.Int).Set(tnt2engine.BigZero)
 	}
-
 	// Set the engine type and build the cipher machine.
-	tntMachine.SetEngineType("E")
-	tntMachine.BuildCipherMachine()
-
+	tnt2Machine.SetEngineType("E")
+	tnt2Machine.BuildCipherMachine()
 	// Read in the map of counts from the file which holds the counts and get
 	// the count to use to encrypt the file.
 	cMap = make(map[string]*big.Int)
 	cMap = readCounterFile(cMap)
-	mKey = tntMachine.CounterKey()
+	mKey = tnt2Machine.CounterKey()
 	if cMap[mKey] == nil {
 		cMap[mKey] = iCnt
 	} else {
@@ -135,16 +120,14 @@ func encrypt(args []string) {
 		}
 	}
 	// Now we can set the index of the ciper machine.
-	tntMachine.SetIndex(iCnt)
-
+	tnt2Machine.SetIndex(iCnt)
 	var encIn *io.PipeReader
-	// leftMost, rightMost := tntMachine.Left(), tntMachine.Right()
 	fin, fout := getInputAndOutputFiles(true)
 	var blck pem.Block
 	if usePem { //useASCII85 || useBinary {
 		blck.Headers = make(map[string]string)
 		blck.Type = "TNT2 Encrypted Message"
-		blck.Headers["Counter"] = fmt.Sprintf("%s", tntMachine.Index())
+		blck.Headers["Counter"] = fmt.Sprintf("%s", tnt2Machine.Index())
 		if len(inputFileName) > 0 && inputFileName != "-" {
 			blck.Headers["FileName"] = inputFileName
 		}
@@ -160,108 +143,26 @@ func encrypt(args []string) {
 		} else {
 			headerLine += "|b"
 		}
-		headerLine += fmt.Sprintf("|%s|%s|", fmt.Sprintf("%v", compression), tntMachine.Index())
+		headerLine += fmt.Sprintf("|%s|%s\n", fmt.Sprintf("%v", compression), tnt2Machine.Index())
 		fout.WriteString(headerLine)
 	}
-
 	if compression {
-		encIn = toBinaryHelper(flate.ToFlate(fin))
+		encIn = cipherHelper(flate.ToFlate(fin), tnt2Machine.Left(), tnt2Machine.Right())
 	} else {
-		encIn = toBinaryHelper(fin)
+		encIn = cipherHelper(fin, tnt2Machine.Left(), tnt2Machine.Right())
 	}
-
 	defer fout.Close()
+	var err error
 	bRdr := bufio.NewReader(encIn)
 	if useBinary {
-		_, err := io.Copy(fout, bRdr)
-		checkError(err)
+		_, err = io.Copy(fout, bRdr)
 	} else if useASCII85 {
-		line, err := bRdr.ReadString('\n')
-		checkError(err)
-		_, err = fout.Write([]byte(line))
-		checkError(err)
 		_, err = io.Copy(fout, lines.SplitToLines(ascii85.ToASCII85(encIn)))
-		checkError(err)
 	} else {
-		line, err := bRdr.ReadString('\n')
-		checkError(err)
-		blck.Headers["FileSize"] = line[:len(line)-1]
 		_, err = io.Copy(fout, pem.ToPem(bRdr, blck))
-		checkError(err)
 	}
-	wg.Wait()
-	cMap[mKey] = tntMachine.Index()
-	checkError(writeCounterFile(cMap))
-
-}
-
-// toBinaryHelper provides the means to output pure binary encrypted
-// data to the output file along with the number of byte encrypted.
-// This is necessary because then entire last block of encrypted data must
-// be output in order to properly decrypt it, even if the plain text does
-// not fill the final block.
-func toBinaryHelper(rdr io.Reader) *io.PipeReader {
-	rRdr, rWrtr := io.Pipe()
-	var cnt int
-	var err error
-	var tmpFile *os.File
-	plainText := make([]byte, 0)
-	leftMost, rightMost := tntMachine.Left(), tntMachine.Right()
-	tmpFile, err = os.CreateTemp("", "tnt2*")
 	checkError(err)
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		defer os.Remove(tmpFile.Name())
-		defer rWrtr.Close()
-		err = nil
-
-		for err != io.EOF {
-			b := make([]byte, 2048)
-			cnt, err = rdr.Read(b)
-			checkError(err)
-
-			if err != io.EOF {
-				plainText = append(plainText, b[:cnt]...)
-				for len(plainText) >= tntengine.CypherBlockBytes {
-					blk := *new(tntengine.CypherBlock)
-					blk.Length = int8(tntengine.CypherBlockBytes)
-					_ = copy(blk.CypherBlock[:], plainText[:blk.Length])
-					leftMost <- blk
-					blk = <-rightMost
-					cnt, err1 := tmpFile.Write(blk.CypherBlock[:])
-					checkError(err1)
-					bytesWritten += int64(cnt)
-					pt := make([]byte, 0)
-					pt = append(pt, plainText[blk.Length:]...)
-					plainText = pt
-				}
-			}
-		}
-
-		if len(plainText) > 0 {
-			blk := *new(tntengine.CypherBlock)
-			blk.Length = int8(len(plainText))
-			cnt = copy(blk.CypherBlock[:], plainText[:blk.Length])
-			leftMost <- blk
-			blk = <-rightMost
-			_, err1 := tmpFile.Write(blk.CypherBlock[:])
-			checkError(err1)
-			bytesWritten += int64(blk.Length)
-		}
-
-		_, err = tmpFile.Seek(0, 0)
-		checkError(err)
-		rWrtr.Write([]byte(fmt.Sprintf("%d\n", bytesWritten)))
-		_, err = io.Copy(rWrtr, tmpFile)
-		checkError(err)
-		// shutdown the decryption machine by processing a CypherBlock with zero
-		// value length field.
-		var blk tntengine.CypherBlock
-		leftMost <- blk
-		<-rightMost
-	}()
-
-	return rRdr
+	wg.Wait()
+	cMap[mKey] = tnt2Machine.Index()
+	checkError(writeCounterFile(cMap))
 }

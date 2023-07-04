@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,12 +28,7 @@ import (
 	"github.com/bgallie/filters/flate"
 	"github.com/bgallie/filters/lines"
 	"github.com/bgallie/filters/pem"
-	"github.com/bgallie/tntengine"
 	"github.com/spf13/cobra"
-)
-
-var (
-	bytesRemaining int64
 )
 
 // decryptCmd represents the decrypt command
@@ -69,8 +64,8 @@ func fromBinaryHelper(rdr io.Reader) *io.PipeReader {
 	rRdr, rWrtr := io.Pipe()
 	wg.Add(1)
 	go func() {
-		defer rWrtr.Close()
 		defer wg.Done()
+		defer rWrtr.Close()
 		_, err := io.Copy(rWrtr, rdr)
 		checkError(err)
 	}()
@@ -79,10 +74,9 @@ func fromBinaryHelper(rdr io.Reader) *io.PipeReader {
 
 func decrypt(args []string) {
 	initEngine(args)
-
 	// Set the engine type and build the cipher machine.
-	tntMachine.SetEngineType("D")
-	tntMachine.BuildCipherMachine()
+	tnt2Machine.SetEngineType("D")
+	tnt2Machine.BuildCipherMachine()
 	fin, fout := getInputAndOutputFiles(false)
 	defer fout.Close()
 	var fal string
@@ -113,7 +107,6 @@ func decrypt(args []string) {
 		if ok {
 			compression = cmpr == "true"
 		}
-		_, err = fmt.Sscanf(blck.Headers["FileSize"], "%d", &bytesRemaining)
 	} else {
 		line, err := bRdr.ReadString('\n')
 		if err == nil {
@@ -125,27 +118,23 @@ func decrypt(args []string) {
 			case 2:
 				ofName = fields[0]
 				iCnt, _ = new(big.Int).SetString(fields[1], 10)
-			case 6:
+			case 5:
 				fal = "-1"
-			case 7:
+			case 6:
 				fal = fields[1]
 				ofName = fields[2]
 				useASCII85 = fields[3] == "a"
 				useBinary = fields[3] == "b"
 				compression = fields[4] == "true"
 				iCnt, _ = new(big.Int).SetString(fields[5], 10)
-				_, err = fmt.Sscanf(fields[6], "%d", &bytesRemaining)
-				checkError(err)
 			}
 		}
 	}
-
 	fileApiLevel, _ := strconv.Atoi(fal)
 	if fileApiLevel != tnt2ApiLevel {
 		fmt.Fprintf(os.Stderr, "Error: API Level mismatch. FileApiLevel: %d, Tnt2ApiLevel: %d\n", fileApiLevel, tnt2ApiLevel)
 		os.Exit(100)
 	}
-
 	if len(outputFileName) == 0 {
 		if len(ofName) > 0 {
 			var err error
@@ -153,61 +142,20 @@ func decrypt(args []string) {
 			checkError(err)
 		}
 	}
-
-	tntMachine.SetIndex(iCnt)
-	leftMost, rightMost := tntMachine.Left(), tntMachine.Right()
-	decRdr, decWrtr := io.Pipe()
-	err = nil
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		defer decWrtr.Close()
-		var cnt int
-		encText := make([]byte, 0)
-		var aRdr *io.PipeReader
-
-		if usePem {
-			aRdr = pRdr
-		} else if useASCII85 {
-			aRdr = ascii85.FromASCII85(lines.CombineLines(bRdr))
-		} else {
-			aRdr = fromBinaryHelper(bRdr)
-		}
-
-		for err != io.EOF {
-			b := make([]byte, 1024)
-			cnt, err = aRdr.Read(b)
-			checkError(err)
-			if err != io.EOF {
-				encText = append(encText, b[:cnt]...)
-				for len(encText) >= tntengine.CypherBlockBytes {
-					blk := *new(tntengine.CypherBlock)
-					blk.Length = int8(tntengine.CypherBlockBytes)
-					_ = copy(blk.CypherBlock[:], encText[:blk.Length])
-					leftMost <- blk
-					blk = <-rightMost
-					var err1 error
-					if bytesRemaining < int64(blk.Length) {
-						_, err1 = decWrtr.Write(blk.CypherBlock[:bytesRemaining])
-					} else {
-						_, err1 = decWrtr.Write(blk.CypherBlock[:])
-					}
-					checkError(err1)
-					bytesRemaining -= int64(blk.Length)
-					pt := make([]byte, 0)
-					pt = append(pt, encText[blk.Length:]...)
-					encText = pt
-				}
-			}
-		}
-	}()
-
-	var flateRdr *io.PipeReader = decRdr
-	if compression {
-		flateRdr = flate.FromFlate(decRdr)
+	tnt2Machine.SetIndex(iCnt)
+	var aRdr *io.PipeReader
+	if usePem {
+		aRdr = pRdr
+	} else if useASCII85 {
+		aRdr = ascii85.FromASCII85(lines.CombineLines(bRdr))
+	} else {
+		aRdr = fromBinaryHelper(bRdr)
 	}
-
+	var flateRdr *io.PipeReader = cipherHelper(aRdr, tnt2Machine.Left(), tnt2Machine.Right())
+	err = nil
+	if compression {
+		flateRdr = flate.FromFlate(flateRdr)
+	}
 	_, err = io.Copy(fout, flateRdr)
 	checkError(err)
 	wg.Wait() // Wait for the decryption machine to finish it's clean up.
