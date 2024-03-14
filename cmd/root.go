@@ -151,8 +151,8 @@ func initConfig() {
 		}
 	}
 	// Apply the configuration that was read in.
-	if viper.InConfig("engineLayout") {
-		tnt2engine.EngineLayout = viper.GetString("engineLayout")
+	if viper.InConfig("general.enginelayout") {
+		tnt2engine.EngineLayout = viper.GetString("general.enginelayout")
 	}
 }
 
@@ -179,8 +179,6 @@ func initEngine(args []string) {
 	}
 	if len(secret) == 0 {
 		cobra.CheckErr("You must supply a password.")
-		// } else {
-		// 	fmt.Printf("Secret: [%s]\n", secret)
 	}
 	// Initialize the tnt2engine with the secret key and the named proforma file.
 	tnt2Machine.Init([]byte(secret), proFormaFileName)
