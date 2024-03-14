@@ -16,13 +16,11 @@ limitations under the License.
 package cmd
 
 import (
-	"encoding/gob"
 	"fmt"
 	"io"
 	"io/fs"
 	"math/big"
 	"os"
-	"os/user"
 	"path/filepath"
 	dbug "runtime/debug"
 	"strings"
@@ -41,9 +39,7 @@ var (
 	proFormaFileName string
 	tnt2Machine      tnt2engine.Tnt2Engine
 	iCnt             *big.Int
-	cMap             map[string]*big.Int
 	mKey             string
-	cntrFileName     string
 	inputFileName    string
 	outputFileName   string
 	useASCII85       bool
@@ -63,7 +59,7 @@ var (
 
 const (
 	tnt2CountFile = ".tnt2"
-	tnt2ApiLevel  = 4
+	tnt2ApiLevel  = 5
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -126,28 +122,38 @@ func getBuildSettings(settings []dbug.BuildSetting, key string) string {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	var confPath string
+	var err error
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
 		// Find home directory.
-		home, err := os.UserHomeDir()
+		confPath, err = os.UserConfigDir()
 		cobra.CheckErr(err)
-
-		// Search config in home directory with name ".tnt2" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".tnt2")
+		confPath = filepath.Join(confPath, "tnt2")
+		viper.AddConfigPath(confPath)
+		viper.SetConfigName("config")
+		viper.SetConfigType("ini")
 	}
-	viper.AutomaticEnv() // read in environment variables that match
+	viper.AutomaticEnv()                        // read in environment variables that match
+	cobra.CheckErr(os.MkdirAll(confPath, 0750)) // encsure confPath exists
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	if err := viper.ReadInConfig(); err != nil {
+		// there was an error reading the config file.  If it did not exist,
+		// the create a default config file with just the engineLayout in it.
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			viper.SetDefault("general.engineLayout", "rrprrprr")
+			cobra.CheckErr(viper.SafeWriteConfig())
+			cobra.CheckErr(viper.ReadInConfig())
+		} else {
+			cobra.CheckErr(err)
+		}
 	}
-	// Get the counter file name based on the current user.
-	u, err := user.Current()
-	cobra.CheckErr(err)
-	cntrFileName = fmt.Sprintf("%s%c%s", u.HomeDir, os.PathSeparator, tnt2CountFile)
+	// Apply the configuration that was read in.
+	if viper.InConfig("engineLayout") {
+		tnt2engine.EngineLayout = viper.GetString("engineLayout")
+	}
 }
 
 func initEngine(args []string) {
@@ -271,26 +277,4 @@ func checkError(e error) {
 	if e != io.EOF && e != io.ErrUnexpectedEOF {
 		cobra.CheckErr(e)
 	}
-}
-
-func readCounterFile(defaultMap map[string]*big.Int) map[string]*big.Int {
-	f, err := os.OpenFile(cntrFileName, os.O_RDONLY, 0600)
-	if err != nil {
-		return defaultMap
-	}
-	defer f.Close()
-	cmap := make(map[string]*big.Int)
-	dec := gob.NewDecoder(f)
-	checkError(dec.Decode(&cmap))
-	return cmap
-}
-
-func writeCounterFile(wMap map[string]*big.Int) error {
-	f, err := os.OpenFile(cntrFileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	enc := gob.NewEncoder(f)
-	return enc.Encode(wMap)
 }

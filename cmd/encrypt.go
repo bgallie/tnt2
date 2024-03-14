@@ -17,6 +17,8 @@ package cmd
 
 import (
 	"bufio"
+	ascii "encoding/ascii85"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/big"
@@ -30,6 +32,7 @@ import (
 	"github.com/bgallie/filters/pem"
 	"github.com/bgallie/tnt2engine"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // encryptCmd represents the encrypt command
@@ -108,16 +111,25 @@ func encrypt(args []string) {
 	tnt2Machine.BuildCipherMachine()
 	// Read in the map of counts from the file which holds the counts and get
 	// the count to use to encrypt the file.
-	cMap = make(map[string]*big.Int)
-	cMap = readCounterFile(cMap)
-	mKey = tnt2Machine.CounterKey()
-	if cMap[mKey] == nil {
-		cMap[mKey] = iCnt
-	} else {
-		iCnt = cMap[mKey]
-		if cnt != "" {
-			fmt.Fprintln(os.Stderr, "Ignoring the block count argument - using the value from the .tnt2 file.")
+	src := []byte(tnt2Machine.CounterKey())
+	dst := make([]byte, hex.DecodedLen(len(src)))
+	n, e := hex.Decode(dst, src)
+	cobra.CheckErr(e)
+	src = dst
+	dst = make([]byte, ascii.MaxEncodedLen(n))
+	n = ascii.Encode(dst, src)
+	mKey = fmt.Sprintf("counters.%s", dst[:n])
+	if viper.IsSet(mKey) {
+		savedCnt := viper.GetString(mKey)
+		_, ok := iCnt.SetString(savedCnt, 10)
+		if !ok {
+			cobra.CheckErr(fmt.Sprintf("Failed to convert the saved count to a big.Int:\n\t[%s]\n", savedCnt))
 		}
+		if cnt != "" {
+			fmt.Fprintln(os.Stderr, "Ignoring the block count argument - using the value from the saved count.")
+		}
+	} else {
+		viper.Set(mKey, tnt2Machine.Index().Text(10))
 	}
 	// Now we can set the index of the ciper machine.
 	tnt2Machine.SetIndex(iCnt)
@@ -163,6 +175,6 @@ func encrypt(args []string) {
 	}
 	checkError(err)
 	wg.Wait()
-	cMap[mKey] = tnt2Machine.Index()
-	checkError(writeCounterFile(cMap))
+	viper.Set(mKey, tnt2Machine.Index().Text(10))
+	cobra.CheckErr(viper.WriteConfig())
 }
