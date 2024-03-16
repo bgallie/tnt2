@@ -58,8 +58,7 @@ var (
 )
 
 const (
-	tnt2CountFile = ".tnt2"
-	tnt2ApiLevel  = 5
+	tnt2ApiLevel = 5
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -79,7 +78,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.tnt2.yaml)")
-	rootCmd.PersistentFlags().StringVarP(&proFormaFileName, "proformafile", "f", "", "the file name containing the proforma machine to use instead of the builtin proforma machine.")
+	rootCmd.PersistentFlags().StringVarP(&proFormaFileName, "proformaFile", "f", "", "the file name containing the proforma machine to use instead of the builtin proforma machine.")
 	rootCmd.PersistentFlags().StringVarP(&inputFileName, "inputFile", "i", "-", "Name of the plaintext file to encrypt/decrypt.")
 	rootCmd.PersistentFlags().StringVarP(&outputFileName, "outputFile", "o", "", "Name of the file containing the encrypted/decrypted plaintext.")
 	// Extract version information from the stored build information.
@@ -137,7 +136,7 @@ func initConfig() {
 		viper.SetConfigType("ini")
 	}
 	viper.AutomaticEnv()                        // read in environment variables that match
-	cobra.CheckErr(os.MkdirAll(confPath, 0750)) // encsure confPath exists
+	cobra.CheckErr(os.MkdirAll(confPath, 0750)) // ensure confPath exists
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil {
 		// there was an error reading the config file.  If it did not exist,
@@ -151,8 +150,8 @@ func initConfig() {
 		}
 	}
 	// Apply the configuration that was read in.
-	if viper.InConfig("general.enginelayout") {
-		tnt2engine.EngineLayout = viper.GetString("general.enginelayout")
+	if viper.InConfig("general.engineLayout") {
+		tnt2engine.EngineLayout = viper.GetString("general.engineLayout")
 	}
 }
 

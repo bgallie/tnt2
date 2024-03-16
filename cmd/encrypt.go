@@ -17,8 +17,6 @@ package cmd
 
 import (
 	"bufio"
-	ascii "encoding/ascii85"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"math/big"
@@ -111,14 +109,7 @@ func encrypt(args []string) {
 	tnt2Machine.BuildCipherMachine()
 	// Read in the map of counts from the file which holds the counts and get
 	// the count to use to encrypt the file.
-	src := []byte(tnt2Machine.CounterKey())
-	dst := make([]byte, hex.DecodedLen(len(src)))
-	n, e := hex.Decode(dst, src)
-	cobra.CheckErr(e)
-	src = dst
-	dst = make([]byte, ascii.MaxEncodedLen(n))
-	n = ascii.Encode(dst, src)
-	mKey = fmt.Sprintf("counters.%s", dst[:n])
+	mKey = fmt.Sprintf("counters.%s", tnt2Machine.CounterKey())
 	if viper.IsSet(mKey) {
 		savedCnt := viper.GetString(mKey)
 		_, ok := iCnt.SetString(savedCnt, 10)
