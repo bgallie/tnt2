@@ -63,14 +63,14 @@ func init() {
 	encryptCmd.Flags().BoolVarP(&usePem, "usePem", "p", false, "use PEM encoding.")
 	encryptCmd.Flags().BoolVarP(&compression, "compress", "c", false, "compress input file using flate")
 	encryptCmd.Flags().StringVarP(&cnt, "count", "n", "", `initial block count
-The inital block count can be given as a fraction (eg. 1/3 or 1/2) of the maximum blocks encrypted before the key repeats.
-The inital block count is only effective on the first use of the secret key.`)
+The initial block count can be given as a fraction (eg. 1/3 or 1/2) of the maximum blocks encrypted before the key repeats.
+The initial block count is only effective on the first use of the secret key.`)
 	encodeCmd.Flags().BoolVarP(&useASCII85, "useASCII85", "a", false, "use ASCII85 encoding")
 	encodeCmd.Flags().BoolVarP(&usePem, "usePem", "p", false, "use PEM encoding.")
 	encodeCmd.Flags().BoolVarP(&compression, "compress", "c", false, "compress input file using flate")
 	encodeCmd.Flags().StringVarP(&cnt, "count", "n", "", `initial block count
-The inital block count can be given as a fraction (eg. 1/3 or 1/2) of the maximum blocks encrypted before the key repeats.
-The inital block count is only effective on the first use of the secret key.`)
+The initial block count can be given as a fraction (eg. 1/3 or 1/2) of the maximum blocks encrypted before the key repeats.
+The initial block count is only effective on the first use of the secret key.`)
 }
 
 func encrypt(args []string) {
@@ -122,7 +122,7 @@ func encrypt(args []string) {
 	} else {
 		viper.Set(mKey, tnt2Machine.Index().Text(10))
 	}
-	// Now we can set the index of the ciper machine.
+	// Now we can set the index of the cipher machine.
 	tnt2Machine.SetIndex(iCnt)
 	var encIn *io.PipeReader
 	fin, fout := getInputAndOutputFiles(true)

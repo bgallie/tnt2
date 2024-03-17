@@ -9,7 +9,7 @@ tnt2 - a program the encrypts/decrypts files using an infinite (with respect to 
 ### Available Commands:
 
       completion  generate the autocompletion script for the specified shell
-      decrypt     decrypt a TNT2 encryptd file.  
+      decrypt     decrypt a TNT2 encrypted file.  
       encrypt     encrypt plaintext using TNT2  
       help        Help about any command
       version     Display version information
@@ -20,7 +20,7 @@ tnt2 - a program the encrypts/decrypts files using an infinite (with respect to 
       -h, --help                  help for tnt2
       -i, --inputFile string      Name of the plaintext file to encrypt/decrypt. (default "-")
       -o, --outputFile string     Name of the file containing
-      -f, --proformafile string   Name of file containing the proforma machine to use.
+      -f, --proformaFile string   Name of file containing the proforma machine to use.
       -v, --version               version for tnt2
 
 Use "tnt2 [command] --help" for more information about a command.
@@ -28,7 +28,7 @@ Use "tnt2 [command] --help" for more information about a command.
 ## DESCRIPTION
 
 **tnt2** is an encryption/decryption system that uses an infinite (with
-respect to the plaintext) key to encrypt the data.  The psuedo-random generator
+respect to the plaintext) key to encrypt the data.  The pseudo-random generator
 used by **tnt2** can encrypt approximately 1.680088572×10³⁹ bytes before the
 generated key will repeat itself.
 
@@ -58,11 +58,11 @@ Encrypt plaintext using the TNT2 Infinite (with respect to the plaintext) Key En
           --config string        config file (default is $HOME/.tnt2.yaml)
       -i, --inputFile string     Name of the plaintext file to encrypt/decrypt. (default "-")
       -o, --outputFile string    Name of the file containing the encrypted/decrypted plaintext.
-      -f, --proformafile string  the file name containing the proforma machine to use.
+      -f, --proformaFile string  the file name containing the proforma machine to use.
 
 ### decrypt
 
-decrypt a file encryptd by the TNT2 Infinite (with respect to the plaintext) Key Encryption System.
+decrypt a file encrypted by the TNT2 Infinite (with respect to the plaintext) Key Encryption System.
 
 #### Usage:
 
@@ -77,7 +77,7 @@ decrypt a file encryptd by the TNT2 Infinite (with respect to the plaintext) Key
           --config string         config file (default is $HOME/.tnt2.yaml)
       -i, --inputFile string      Name of the plaintext file to encrypt/decrypt. (default "-")
       -o, --outputFile string     Name of the file containing the encrypted/decrypted plaintext.
-      -f, --proformafile string   the file name containing the proforma machine to use.
+      -f, --proformaFile string   the file name containing the proforma machine to use.
 
 ### version
 

@@ -57,7 +57,7 @@ func init() {
 	rootCmd.AddCommand(decodeCmd)
 }
 
-// fromBinaryHelper provides the neams to inject the pure binary input
+// fromBinaryHelper provides the means to inject the pure binary input
 // into the pipe stream used by the decrypt() function.  The data can
 // be read using the returned PipeReader.
 func fromBinaryHelper(rdr io.Reader) *io.PipeReader {
@@ -98,9 +98,9 @@ func decrypt(args []string) {
 		}
 		iCnt, _ = new(big.Int).SetString(blck.Headers["Counter"], 10)
 		if len(outputFileName) == 0 {
-			fname, ok := blck.Headers["FileName"]
+			fName, ok := blck.Headers["FileName"]
 			if ok {
-				ofName = fname
+				ofName = fName
 			}
 		}
 		cmpr, ok := blck.Headers["Compression"]
