@@ -28,6 +28,7 @@ import (
 	"github.com/bgallie/filters/flate"
 	"github.com/bgallie/filters/lines"
 	"github.com/bgallie/filters/pem"
+	"github.com/bgallie/tnt2engine"
 	"github.com/spf13/cobra"
 )
 
@@ -41,20 +42,8 @@ var decryptCmd = &cobra.Command{
 	},
 }
 
-// decodeCmd represents the decode command
-var decodeCmd = &cobra.Command{
-	Use:        "decode",
-	Short:      "Decode a TNT2 encoded file.",
-	Long:       `[DEPRECATED] Decode a file encoded by the TNT2 Infinite (with respect to the plaintext) Key Encryption System.`,
-	Deprecated: "use \"decrypt\" instead.",
-	Run: func(cmd *cobra.Command, args []string) {
-		decrypt(args)
-	},
-}
-
 func init() {
 	rootCmd.AddCommand(decryptCmd)
-	rootCmd.AddCommand(decodeCmd)
 }
 
 // fromBinaryHelper provides the means to inject the pure binary input
@@ -72,14 +61,17 @@ func fromBinaryHelper(rdr io.Reader) *io.PipeReader {
 	return rRdr
 }
 
+func decodeEngineLayout(el string) string {
+	r := strings.NewReplacer("1", "r", "0", "p")
+	v, _ := strconv.ParseUint(el, 10, 64)
+	return r.Replace(strconv.FormatUint(v, 2))
+}
+
 func decrypt(args []string) {
-	initEngine(args)
-	// Set the engine type and build the cipher machine.
-	tnt2Machine.SetEngineType("D")
-	tnt2Machine.BuildCipherMachine()
 	fin, fout := getInputAndOutputFiles(false)
 	defer fout.Close()
 	var fal string
+	var engLayout string
 	var ofName string
 	var bRdr *bufio.Reader
 	var pRdr *io.PipeReader
@@ -95,6 +87,10 @@ func decrypt(args []string) {
 		fal, exists = blck.Headers["ApiLevel"]
 		if !exists {
 			fal = "-1"
+		}
+		engLayout, exists = blck.Headers["Layout"]
+		if exists {
+			tnt2engine.EngineLayout = decodeEngineLayout(engLayout)
 		}
 		iCnt, _ = new(big.Int).SetString(blck.Headers["Counter"], 10)
 		if len(outputFileName) == 0 {
@@ -127,6 +123,14 @@ func decrypt(args []string) {
 				useBinary = fields[3] == "b"
 				compression = fields[4] == "true"
 				iCnt, _ = new(big.Int).SetString(fields[5], 10)
+			case 7:
+				fal = fields[1]
+				tnt2engine.EngineLayout = decodeEngineLayout(fields[2])
+				ofName = fields[3]
+				useASCII85 = fields[4] == "a"
+				useBinary = fields[4] == "b"
+				compression = fields[5] == "true"
+				iCnt, _ = new(big.Int).SetString(fields[6], 10)
 			}
 		}
 	}
@@ -142,6 +146,11 @@ func decrypt(args []string) {
 			checkError(err)
 		}
 	}
+
+	initEngine(args)
+	// Set the engine type and build the cipher machine.
+	tnt2Machine.SetEngineType("D")
+	tnt2Machine.BuildCipherMachine()
 	tnt2Machine.SetIndex(iCnt)
 	var aRdr *io.PipeReader
 	if usePem {

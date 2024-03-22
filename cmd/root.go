@@ -37,6 +37,7 @@ import (
 var (
 	cfgFile          string
 	proFormaFileName string
+	engineLayout     string
 	tnt2Machine      tnt2engine.Tnt2Engine
 	iCnt             *big.Int
 	mKey             string
@@ -58,7 +59,8 @@ var (
 )
 
 const (
-	tnt2ApiLevel = 5
+	tnt2ApiLevel        = 5
+	defaultEngineLayout = "rrprrprr"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -77,8 +79,9 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.tnt2.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "the config file to use")
 	rootCmd.PersistentFlags().StringVarP(&proFormaFileName, "proformaFile", "f", "", "the file name containing the proforma machine to use instead of the builtin proforma machine.")
+	rootCmd.PersistentFlags().StringVarP(&engineLayout, "engineLayout", "e", "", "the engineLayout to use for the encryption machine.")
 	rootCmd.PersistentFlags().StringVarP(&inputFileName, "inputFile", "i", "-", "Name of the plaintext file to encrypt/decrypt.")
 	rootCmd.PersistentFlags().StringVarP(&outputFileName, "outputFile", "o", "", "Name of the file containing the encrypted/decrypted plaintext.")
 	// Extract version information from the stored build information.
@@ -149,9 +152,15 @@ func initConfig() {
 			cobra.CheckErr(err)
 		}
 	}
-	// Apply the configuration that was read in.
-	if viper.InConfig("general.engineLayout") {
+	// Use the engineLayout from the command line argument, if given.
+	// Otherwise use the config value if it exists, otherwise use
+	// 'rrprrprr' as a default.
+	if len(engineLayout) > 0 {
+		tnt2engine.EngineLayout = engineLayout
+	} else if viper.InConfig("general.engineLayout") {
 		tnt2engine.EngineLayout = viper.GetString("general.engineLayout")
+	} else {
+		tnt2engine.EngineLayout = defaultEngineLayout
 	}
 }
 

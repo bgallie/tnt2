@@ -44,33 +44,20 @@ var encryptCmd = &cobra.Command{
 	},
 }
 
-// encodeCmd represents the encode command
-var encodeCmd = &cobra.Command{
-	Use:        "encode",
-	Short:      "Encode plaintext using TNT2",
-	Long:       `[DEPRECATED] Encode plaintext using the TNT2 Infinite (with respect to the plaintext) Key Encryption System.`,
-	Deprecated: "use \"encrypt\" instead.",
-	Run: func(cmd *cobra.Command, args []string) {
-		useBinary = !(useASCII85 || usePem)
-		encrypt(args)
-	},
-}
-
 func init() {
 	rootCmd.AddCommand(encryptCmd)
-	rootCmd.AddCommand(encodeCmd)
 	encryptCmd.Flags().BoolVarP(&useASCII85, "useASCII85", "a", false, "use ASCII85 encoding")
 	encryptCmd.Flags().BoolVarP(&usePem, "usePem", "p", false, "use PEM encoding.")
-	encryptCmd.Flags().BoolVarP(&compression, "compress", "c", false, "compress input file using flate")
+	encryptCmd.Flags().BoolVar(&compression, "compress", true, "compress input file using flate")
 	encryptCmd.Flags().StringVarP(&cnt, "count", "n", "", `initial block count
 The initial block count can be given as a fraction (eg. 1/3 or 1/2) of the maximum blocks encrypted before the key repeats.
 The initial block count is only effective on the first use of the secret key.`)
-	encodeCmd.Flags().BoolVarP(&useASCII85, "useASCII85", "a", false, "use ASCII85 encoding")
-	encodeCmd.Flags().BoolVarP(&usePem, "usePem", "p", false, "use PEM encoding.")
-	encodeCmd.Flags().BoolVarP(&compression, "compress", "c", false, "compress input file using flate")
-	encodeCmd.Flags().StringVarP(&cnt, "count", "n", "", `initial block count
-The initial block count can be given as a fraction (eg. 1/3 or 1/2) of the maximum blocks encrypted before the key repeats.
-The initial block count is only effective on the first use of the secret key.`)
+}
+
+func encodeEngineLayout() uint64 {
+	r := strings.NewReplacer("r", "1", "p", "0")
+	v, _ := strconv.ParseUint(r.Replace(tnt2engine.EngineLayout), 2, 64)
+	return v
 }
 
 func encrypt(args []string) {
@@ -135,9 +122,10 @@ func encrypt(args []string) {
 			blck.Headers["FileName"] = inputFileName
 		}
 		blck.Headers["Compression"] = fmt.Sprintf("%v", compression)
-		blck.Headers["ApiLevel"] = strconv.Itoa(tnt2ApiLevel)
+		blck.Headers["ApiLevel"] = fmt.Sprintf("%d", tnt2ApiLevel)
+		blck.Headers["Layout"] = fmt.Sprintf("%d", encodeEngineLayout())
 	} else {
-		headerLine = fmt.Sprintf("+TNT2|%d|", tnt2ApiLevel)
+		headerLine = fmt.Sprintf("+TNT2|%d|%d|", tnt2ApiLevel, encodeEngineLayout())
 		if len(inputFileName) > 0 && inputFileName != "-" {
 			headerLine += inputFileName
 		}
